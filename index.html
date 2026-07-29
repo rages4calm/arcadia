@@ -726,7 +726,10 @@ const GEAR_LIB = [
   {"slot":"Feet","name":"Voltscale Legguards","rarity":"legendary","lvl":47,"rolls":[{"s":"vitality","p":1,"v":29},{"s":"power","p":1,"v":9},{"s":"ferocity","p":1,"v":9},{"s":"critical_strike_chance","p":0,"v":7.0},{"s":"critical_strike_chance","p":0,"v":5.0,"t":"gun"},{"s":"critical_strike_damage","p":0,"v":28.0}]},
   {"slot":"Feet","name":"Foundation Bulwark Greaves","rarity":"legendary","lvl":83,"rolledSec":2,"fx":{"trigger":"on crit","scope":"melee","effect":"Melee critical strikes generate extra threat"},"rolls":[{"s":"power","p":1,"v":15},{"s":"will","p":1,"v":15},{"s":"vitality","p":1,"v":53}]},
   {"slot":"Feet","name":"Virelda Warcrest Greaves","rarity":"legendary","lvl":83,"rolledSec":2,"fx":{"trigger":"on heavy hit","scope":"physical","effect":"Heavy hits with Physical damage grant +3% Physical damage for 5s, stacking up to 10"},"rolls":[{"s":"power","p":1,"v":15},{"s":"ferocity","p":1,"v":15},{"s":"vitality","p":1,"v":53}]},
-  {"slot":"Feet","name":"Neotilus Trailseeker Boots","rarity":"legendary","lvl":83,"rolledSec":2,"rolls":[{"s":"power","p":1,"v":15},{"s":"precision","p":1,"v":15},{"s":"vitality","p":1,"v":53},{"s":"projectile_count","p":0,"v":1}]},
+  /* The extra projectile is a Legendary bonus roll here, not a fixed line - it was
+     transcribed from a copy that happened to roll it. Base secondaries are attack
+     speed, heavy hit chance and duration, which the database supplies. */
+  {"slot":"Feet","name":"Neotilus Trailseeker Boots","rarity":"legendary","lvl":83,"rolledSec":3,"rolls":[{"s":"power","p":1,"v":15},{"s":"precision","p":1,"v":15},{"s":"vitality","p":1,"v":53}]},
   {"slot":"Feet","name":"Necrotic Warrior Boots","rarity":"legendary","lvl":91,"rolledSec":2,"rolls":[{"s":"power","p":1,"v":17},{"s":"ferocity","p":1,"v":16},{"s":"vitality","p":1,"v":58}]},
   {"slot":"Head","name":"Encoded Helm","rarity":"rare","lvl":28,"rolls":[{"s":"vitality","p":1,"v":14},{"s":"precision","p":1,"v":7},{"s":"will","p":1,"v":7},{"s":"attack_speed","p":0,"v":5.5},{"s":"physical_damage","p":0,"v":5.5},{"s":"knockback","p":0,"v":22.0}]},
   {"slot":"Head","name":"Foundation Bulwark Helm","rarity":"uncommon","lvl":50,"rolls":[{"s":"power","p":1,"v":12},{"s":"will","p":1,"v":12},{"s":"vitality","p":1,"v":26},{"s":"attack_speed","p":0,"v":7.2}]},
