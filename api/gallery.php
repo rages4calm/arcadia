@@ -47,9 +47,11 @@ $PAGE   = 24;
 
 /* ------------------------------ list ------------------------------ */
 if ($method === 'GET') {
-    $sort    = ($_GET['sort'] ?? 'top') === 'new' ? 'new' : 'top';
+    $sortRaw = (string) ($_GET['sort'] ?? 'top');
+    $sort    = in_array($sortRaw, ['new', 'opened'], true) ? $sortRaw : 'top';
     $page    = max(0, min(100, (int) ($_GET['page'] ?? 0)));
     $ability = (string) ($_GET['ability'] ?? '');
+    $query   = trim((string) ($_GET['q'] ?? ''));
 
     $where  = 'published = 1 AND hidden = 0';
     $params = [];
@@ -59,7 +61,18 @@ if ($method === 'GET') {
         $where .= ' AND summary LIKE ?';
         $params[] = '%"' . $ability . '"%';
     }
-    $order = $sort === 'new' ? 'published_at DESC' : 'votes DESC, published_at DESC';
+    if ($query !== '') {
+        // Search what the author actually wrote: the title, their name, and the
+        // notes explaining the build. LIKE is bound, and the wildcards in the
+        // term itself are escaped so a stray % cannot widen the match.
+        if (mb_strlen($query) > 60) fail(400, 'Search term too long');
+        $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query) . '%';
+        $where .= ' AND (title LIKE ? OR author LIKE ? OR notes LIKE ?)';
+        array_push($params, $like, $like, $like);
+    }
+    $order = $sort === 'new'    ? 'published_at DESC'
+           : ($sort === 'opened' ? 'hits DESC, votes DESC, published_at DESC'
+                                 : 'votes DESC, published_at DESC');
 
     $sql  = "SELECT id, title, author, notes, summary, votes, hits, published_at
              FROM builds WHERE $where ORDER BY $order LIMIT " . ($PAGE + 1) . " OFFSET " . ($page * $PAGE);

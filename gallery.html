@@ -70,6 +70,13 @@
   select{background:var(--sunk);border:1px solid var(--edge);color:var(--ink);
     padding:6px 8px;font-family:var(--sans);font-size:12.5px;max-width:220px}
   select:focus{border-color:var(--amber-dim);outline:none}
+  /* Matches the ability filter beside it. Pushed right so the sort tabs stay one
+     group on the left and searching reads as a separate act. */
+  .bar input[type=search]{background:var(--sunk);border:1px solid var(--edge);color:var(--ink);
+    padding:6px 9px;font-family:var(--sans);font-size:12.5px;min-width:170px;
+    flex:1;max-width:280px;margin-left:auto}
+  .bar input[type=search]:focus{border-color:var(--amber-dim);outline:none}
+  .bar input[type=search]::placeholder{color:var(--faint)}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:11px}
   .card{background:var(--panel);border:1px solid var(--amber-dim);
@@ -135,6 +142,7 @@
   @media (max-width:560px){
     .wrap{padding:14px 12px 60px} .grid{grid-template-columns:1fr}
     select{max-width:none;flex:1} .home{margin-left:0}
+    .bar input[type=search]{margin-left:0;max-width:none;width:100%}
   }
 </style>
 </head>
@@ -151,7 +159,10 @@
   <div class="bar" role="tablist" aria-label="Sort builds">
     <button class="tab" id="tabTop" role="tab" aria-selected="true"  onclick="setSort('top')">Top</button>
     <button class="tab" id="tabNew" role="tab" aria-selected="false" onclick="setSort('new')">Newest</button>
+    <button class="tab" id="tabOpened" role="tab" aria-selected="false" onclick="setSort('opened')">Most opened</button>
     <select id="filter" aria-label="Filter by ability" onchange="setFilter(this.value)"></select>
+    <input id="q" type="search" placeholder="Search title, author or notes"
+           aria-label="Search builds" autocomplete="off" spellcheck="false" maxlength="60">
   </div>
 
   <main id="main"><div class="grid" id="grid"></div></main>
@@ -186,21 +197,35 @@ const ATTR_NAMES=["Power","Precision","Will","Ferocity","Vitality","Focus"];
 const abilName=id=>(ABILITIES.find(a=>a.id===id)||{}).name||id;
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-let sort="top", filter="", page=0, loading=false;
+let sort="top", filter="", query="", page=0, loading=false;
 let adminTok = localStorage.getItem("arcadia_admin") || "";
 
 document.getElementById("filter").innerHTML =
   `<option value="">every ability</option>`+
   ABILITIES.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("");
 
+const SORTS={top:"tabTop", new:"tabNew", opened:"tabOpened"};
 function setSort(s){
   sort=s; page=0;
-  document.getElementById("tabTop").setAttribute("aria-selected", s==="top");
-  document.getElementById("tabNew").setAttribute("aria-selected", s==="new");
+  for(const k in SORTS) document.getElementById(SORTS[k]).setAttribute("aria-selected", k===s);
   document.getElementById("grid").innerHTML="";
   load();
 }
 function setFilter(v){ filter=v; page=0; document.getElementById("grid").innerHTML=""; load(); }
+/* Search hits the API rather than filtering what is on screen: results are paged,
+   so a client-side filter would only ever search the page you happen to be on.
+   Debounced so typing does not fire a request per keystroke. */
+let _qTimer=null;
+function setQuery(v){
+  query=v; page=0;
+  document.getElementById("grid").innerHTML="";
+  load();
+}
+document.getElementById("q").addEventListener("input", e=>{
+  clearTimeout(_qTimer);
+  const v=e.target.value.trim();
+  _qTimer=setTimeout(()=>{ if(v!==query) setQuery(v); }, 300);
+});
 
 function card(b){
   const abils=(b.summary&&b.summary.abilities||[]).map(a=>`<span class="ab">${esc(abilName(a))}</span>`).join("");
@@ -230,6 +255,7 @@ async function load(){
   try{
     const q=new URLSearchParams({sort,page:String(page)});
     if(filter) q.set("ability",filter);
+    if(query)  q.set("q",query);
     const res=await fetch("/api/gallery.php?"+q.toString());
     if(!res.ok) throw new Error(res.status);
     const j=await res.json();
@@ -237,8 +263,14 @@ async function load(){
     grid.insertAdjacentHTML("beforeend",(j.builds||[]).map(card).join(""));
     st.innerHTML = j.more
       ? `<button class="more" onclick="page++;load()">Load more</button>`
-      : (grid.children.length?``:`<div class="empty"><b>Nothing here yet.</b><br>
-          Open the planner, build something, then use <b>Publish to gallery</b> to be the first.</div>`);
+      : (grid.children.length?``
+        : (query||filter)
+          // "Nothing here yet" reads as an empty gallery, which is wrong and
+          // discouraging when it is really a search that matched nothing.
+          ? `<div class="empty"><b>No builds match that.</b><br>
+              Try a different search${filter?` or set the filter back to <b>every ability</b>`:``}.</div>`
+          : `<div class="empty"><b>Nothing here yet.</b><br>
+              Open the planner, build something, then use <b>Publish to gallery</b> to be the first.</div>`);
   }catch(e){
     st.innerHTML=`<div class="note bad">Couldn't load the gallery. It may not be set up on this
       server yet — the <a href="/">planner</a> works regardless.</div>`;
