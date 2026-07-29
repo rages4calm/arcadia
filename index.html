@@ -621,7 +621,7 @@
         <div class="note" id="itemdbNote"></div>
       </details>
       <div class="card">
-        <h2>Ability match <span class="hint">how well each ability fits your stats</span></h2>
+        <h2>Ability match <span class="hint">raw attribute fit only &mdash; ignores procs and modifiers</span></h2>
         <div id="abilrank"></div>
         <div class="note" id="abilNote"></div>
       </div>
@@ -1807,14 +1807,19 @@ function renderAbilRank(){
     const isEq=eq.includes(r.a.id),isS=!isEq&&sug.includes(r.a.id);
     return `<div class="arow ${isEq?'eq':''} ${isS?'sug':''}"><span class="rank">${i+1}</span>
       <span class="nm">${r.a.name}</span>
-      ${isEq?'<span class="badge eq">equipped</span>':''}${isS?'<span class="badge sug">good fit</span>':''}
+      ${isEq?'<span class="badge eq">equipped</span>':''}${isS?'<span class="badge sug">best on stats</span>':''}
       <span class="ty">${r.a.type}</span>
       <span class="by">${r.a.by.map(k=>k.slice(0,3).toUpperCase()).join("·")}</span>
       <span class="sc" style="color:${r.s>=mx*0.85?'var(--good)':r.s>=mx*0.6?'var(--hl)':'var(--faint)'}">${r.s}</span></div>`;
   }).join("");
   document.getElementById("abilNote").innerHTML=
     `Score = attribute points you own that an ability can actually use (sum of its 3 scaling attributes). `+
-    `A <b>fit</b> measure, not predicted damage — base damage, cooldown and playstyle still matter.`;
+    `<b>That is all it measures.</b> It does not count legendary procs, ability-scoped rolls like `+
+    `<code>[Gun] +100% Shots Per Tick</code>, or anything else aimed at a single ability — and those are `+
+    `frequently worth more than the attributes are. Plenty of strong builds wear gear with mediocre `+
+    `attributes purely for a proc, and this ranking cannot see that. It also knows nothing about base `+
+    `damage, cooldown, or how an ability actually plays. Treat it as a tiebreaker between abilities your `+
+    `gear supports equally, not as a verdict.`;
 }
 function renderRules(){
   document.getElementById("itemRules").innerHTML=
