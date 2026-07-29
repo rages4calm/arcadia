@@ -257,6 +257,19 @@
   .shot-rolls li.ocr .k{color:var(--cyan)}
   .shot-rolls li.bad{color:var(--red)}
   .shot-rolls li.bad .k{color:var(--red)}
+  .radv{border:1px solid var(--amber-dim);background:#1B1520;padding:11px 12px;margin-bottom:14px}
+  .radv h3{font-family:var(--pixel);font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--amber-ink);margin:0 0 7px}
+  .radv .lead{color:var(--dim);font-size:12.5px;line-height:1.55;margin:0 0 9px}
+  .radv .theme{display:inline-block;border:1px solid var(--edge);color:var(--faint);
+    font-size:10.5px;padding:1px 6px;margin:0 4px 4px 0}
+  .radv ul{margin:0;padding-left:18px}
+  .radv li{color:var(--dim);font-size:12.5px;line-height:1.5;margin:3px 0}
+  .radv li .ab{color:var(--cyan)}
+  .radv li .why{color:var(--faint);font-size:11.5px}
+  .radv .bad li .why{color:#E0996B}
+  .radv .bad h3{color:#E0996B}
+  .radv .bad{margin-top:10px;border-top:1px solid var(--edge2);padding-top:9px}
   .relic-intro{color:var(--dim);font-size:12.5px;line-height:1.6;margin:0 0 10px}
   .relic-all{display:flex;gap:7px;align-items:center;color:var(--faint);font-size:12px;
     margin-bottom:12px;cursor:pointer}
@@ -1301,6 +1314,150 @@ function relicBlock(id){
       <span class="ac">${relicCount(r)} relics</span></summary>
     <div class="relic-in">${branches}${solo}</div></details>`;
 }
+/* What the build is actually leaning on, read off the gear rather than guessed.
+   Each theme keeps the evidence that raised it so the advice can say why, and a
+   theme nobody has invested in never fires. */
+const RELIC_THEMES=[
+  {k:"dot",      name:"damage over time", stats:["dot_potency","dot_potency_pct","dot_interval"],
+   want:/\b(burn|burns|burning|ignite|ignites|scorch|damage over time|\bdot\b)/i,
+   anti:/(burn|fire dot|dot)[^.]*(shorter|last -)/i,
+   antiWhy:"shortens your burns, and damage over time is what this build runs on"},
+  {k:"crit",     name:"critical strikes", stats:["critical_strike_chance","critical_strike_damage"],
+   want:/\bcrit(ical)?\b/i, anti:/-\d+%?\s*crit/i,
+   antiWhy:"cuts critical strikes, which your gear leans on"},
+  {k:"aoe",      name:"area of effect", stats:["aoe_radius"],
+   want:/\b(aoe|area of effect|radius|blast radius)\b/i, anti:/-\d+%\s*(aoe|area of effect)/i,
+   antiWhy:"shrinks your area of effect, which your gear pays for"},
+  {k:"cooldown", name:"cooldown reduction", stats:["cooldown_reduction"],
+   want:/\bcooldown\b/i,
+   // "+10% cooldown reduction" is a gain; "+100% cooldown" is the penalty. That
+   // negative lookahead is the entire difference between the two.
+   anti:/\+\d+%\s*cooldown\b(?!\s*reduction)/i,
+   antiWhy:"raises your cooldown, and you have paid for cooldown reduction"},
+  {k:"heavy",    name:"heavy hits", stats:["heavy_hit_chance","heavy_hit_damage"],
+   want:/\bheavy hit/i},
+  {k:"speed",    name:"attack speed", stats:["attack_speed"],
+   want:/\b(fire rate|attack speed|rotation speed)\b/i},
+  {k:"duration", name:"effect duration", stats:["duration"], want:/\bduration\b/i},
+];
+/* Elements are treated the same way, but they also matter when a relic CONVERTS to
+   them: converting to an element you have no gear for throws that gear away. */
+const RELIC_ELEMENTS=[
+  // "fire rate" is attack speed, not fire damage. Without the lookahead every
+  // fire-rate relic in the game reads as a fire-build recommendation.
+  {k:"FIRE",     stats:["power_fire","fire_damage"],
+   want:/\bfire(?!\s*rate)\b|burn|ignite|incendiar|blaz/i,
+   anti:/increases their fire resistance/i,
+   antiWhy:"raises enemy FIRE resistance, working against your own damage"},
+  {k:"COLD",     stats:["power_cold","cold_damage"],           want:/\bcold|chill|freeze|frost/i},
+  {k:"VOID",     stats:["power_void","void_damage"],           want:/\bvoid\b/i},
+  {k:"LIGHTNING",stats:["power_lightning","lightning_damage"], want:/\blightning|electro|storm/i},
+  {k:"PHYSICAL", stats:["power_physical","physical_damage"],   want:/\bphysical\b/i},
+  {k:"EXPLOSIVE",stats:["power_explosive","explosive_damage"], want:/\bexplosi|shell burst|micro explosion/i},
+];
+
+function buildThemes(){
+  const sec=secTotals(), out=[];
+  for(const t of RELIC_THEMES){
+    const v=t.stats.reduce((n,s)=>n+(+sec[s]||0),0);
+    if(v>0) out.push({...t, why:`your gear has ${Math.round(v*10)/10} ${SEC[t.stats[0]]||t.stats[0]}`});
+  }
+  for(const e of RELIC_ELEMENTS){
+    const v=e.stats.reduce((n,s)=>n+(+sec[s]||0),0);
+    if(v>0) out.push({...e, name:e.k.toLowerCase()+" damage",
+                      why:`your gear boosts ${e.k.toLowerCase()} damage`, element:e.k});
+  }
+  /* A proc that fires on crit makes crit worth more than the raw stat suggests, and
+     one scoped to an element or an ability makes that a theme even with no gear
+     behind it yet. This is where the legendary work pays off. */
+  for(const sl of SLOTS){
+    const g=S.gear[sl]; if(!g||!g.item) continue;
+    const fx=fxFor(g.item); if(!fx) continue;
+    const trig=String(fx.trigger||"").toLowerCase();
+    if(/crit/.test(trig) && !out.some(t=>t.k==="crit"))
+      out.push({k:"crit", name:"critical strikes", want:/\bcrit(ical)?\b/i,
+                why:`${g.item} procs on a critical strike`});
+    if(/heavy/.test(trig) && !out.some(t=>t.k==="heavy"))
+      out.push({k:"heavy", name:"heavy hits", want:/\bheavy hit/i,
+                why:`${g.item} procs on a heavy hit`});
+    const sc=String(fx.scope||"").toUpperCase();
+    const el=RELIC_ELEMENTS.find(e=>e.k===sc);
+    if(el && !out.some(t=>t.element===el.k))
+      out.push({...el, name:el.k.toLowerCase()+" damage", element:el.k,
+                why:`${g.item}'s effect is ${el.k.toLowerCase()}`});
+  }
+  return out;
+}
+
+function relicAdvice(){
+  const themes=buildThemes();
+  /* One element is the build's; the rest are incidental rolls. Recommending a
+     conversion to anything else would tell a fire build to go physical. */
+  const sec=secTotals();
+  let domElement=null, domV=0;
+  for(const e of RELIC_ELEMENTS){
+    const v=e.stats.reduce((n,st)=>n+(+sec[st]||0),0);
+    if(v>domV){ domV=v; domElement=e.k; }
+  }
+  const mine=S.loadout.filter(id=>id&&RELICS[id]);
+  const good=[], bad=[];
+  if(!themes.length || !mine.length) return {themes, good, bad, mine};
+
+  for(const id of mine){
+    const abName=(ABILITIES.find(a=>a.id===id)||{}).name||id;
+    const r=RELICS[id];
+    const entries=[];
+    for(const bn in (r.b||{})) entries.push({label:bn, text:(r.b[bn].t||[]).join(" "), meta:r.b[bn]});
+    for(const s of (r.s||[]))   entries.push({label:s.t, text:s.t, meta:s});
+
+    for(const e of entries){
+      const hits=[], warns=[];
+      for(const t of themes){
+        if(t.anti && t.anti.test(e.text)) warns.push(t);
+        else if(t.want && t.want.test(e.text)) hits.push(t);
+      }
+      // A conversion is only good if you have gear for the element it converts TO.
+      if(e.meta.conv){
+        const has=e.meta.conv===domElement;
+        if(has) hits.push({name:e.meta.conv.toLowerCase()+" conversion",
+                           why:`converts to ${e.meta.conv.toLowerCase()}, the element your gear backs hardest`});
+        else if(themes.some(t=>t.element))
+          warns.push({name:"element mismatch",
+                      why:`converts to ${e.meta.conv.toLowerCase()}, which none of your gear boosts`});
+      }
+      if(e.meta.dot && themes.some(t=>t.k==="dot"))
+        hits.push({name:"damage over time", why:"applies damage over time, which your DoT Potency scales"});
+
+      if(warns.length) bad.push({ab:abName, label:e.label,
+        why:warns[0].antiWhy||warns[0].why||`fights your ${warns[0].name}`});
+      else if(hits.length>=2) good.push({ab:abName, label:e.label, n:hits.length,
+                                         why:hits.slice(0,2).map(h=>h.why||h.name).join("; ")});
+    }
+  }
+  good.sort((a,b)=>b.n-a.n);
+  return {themes, good:good.slice(0,8), bad:bad.slice(0,5), mine};
+}
+
+function renderRelicAdvice(){
+  const {themes,good,bad,mine}=relicAdvice();
+  if(!mine.length) return "";
+  if(!themes.length)
+    return `<div class="radv"><h3>Worth grabbing</h3>
+      <p class="lead">Add some gear above and this will rank your relic pools against
+      what your build actually scales on.</p></div>`;
+  const chips=themes.slice(0,7).map(t=>`<span class="theme">${esc(t.name)}</span>`).join("");
+  return `<div class="radv">
+    <h3>Worth grabbing</h3>
+    <p class="lead">Read off your gear, this build leans on: ${chips}</p>
+    ${good.length?`<ul>${good.map(g=>
+      `<li><span class="ab">${esc(g.ab)}</span> — ${esc(g.label)}<br>
+        <span class="why">${esc(g.why)}</span></li>`).join("")}</ul>`
+      : `<p class="lead">Nothing in your pools lines up strongly with this gear yet.</p>`}
+    ${bad.length?`<div class="bad"><h3>Reads like an upgrade, is not</h3><ul>${bad.map(b=>
+      `<li><span class="ab">${esc(b.ab)}</span> — ${esc(b.label)}<br>
+        <span class="why">${esc(b.why)}</span></li>`).join("")}</ul></div>`:``}
+  </div>`;
+}
 function renderRelics(){
   const box=document.getElementById("relicBody"); if(!box) return;
   const all=(document.getElementById("relicAll")||{}).checked;
@@ -1317,7 +1474,7 @@ function renderRelics(){
     box.innerHTML=`<div class="hint">Pick an ability or weapon above and its relic pool appears here.</div>`;
     return;
   }
-  box.innerHTML=ids.map(relicBlock).join("");
+  box.innerHTML=renderRelicAdvice()+ids.map(relicBlock).join("");
 }
 
 function renderLoadout(){
