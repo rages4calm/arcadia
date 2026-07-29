@@ -2551,10 +2551,17 @@ function buildImportGear(parsed){
   return {slot, gear:{item:parsed.name||"Imported item",lv:parsed.lvl||0,rolls}, fromLib:false};
 }
 
+/* Some tooltip lines print without the ability they apply to. "+1 additional
+   projectile" is the known case: a developer confirmed it is Drone only and that
+   the description failing to say so is the bug. Items that scope it elsewhere
+   still carry an explicit tag - the Pyrosphere Ring does - so only fill in the
+   blank when the game left one. */
+const IMPLIED_TAG={projectile_count:"drone"};
 function rollLabel(r){
   if(!r||!r.s) return "(empty pick)";
   const nm=r.p?(ATTRS[r.s]?ATTRS[r.s].name:r.s):(SEC[r.s]||r.s);
-  const tag=r.t?`[${TAG_NAME[r.t]||r.t}] `:"";
+  const t=r.t||(r.p?null:IMPLIED_TAG[r.s])||null;
+  const tag=t?`[${TAG_NAME[t]||t}] `:"";
   return `${tag}${r.v>=0?"+":""}${r.v} ${nm}`;
 }
 function shotRollLi(r,index){
