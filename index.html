@@ -1129,6 +1129,38 @@ function secTotals(){
 function equipped(){ return S.loadout.filter(Boolean).map(id=>ABILITIES.find(a=>a.id===id)).filter(Boolean); }
 function coverage(){ const c={}; AKEYS.forEach(k=>c[k]=0);
   equipped().forEach(a=>a.by.forEach(k=>c[k]++)); return c; }
+/* Tagged rolls and scoped legendary effects only work with abilities carrying that
+   tag, so an ability can look weak on attributes while being the only thing making
+   your gear function. A Gunner's Pendant and a Double Tap Ring are [Gun]-only: rank
+   on attribute points alone and the tool will happily tell you to drop your last
+   gun ability and throw both away. Attributes are a tiebreaker here, not the
+   measure. */
+function listJoin(a){
+  if(a.length<2) return a[0]||"";
+  return a.slice(0,-1).join(", ")+" and "+a[a.length-1];
+}
+function abilityGear(a){
+  const hits=[];
+  SLOTS.forEach(sl=>{
+    const g=S.gear[sl]; if(!g) return;
+    (g.rolls||[]).forEach(r=>{
+      if(r.t && r.s && tagMatches(r.t,a)) hits.push({item:g.item||sl, what:rollLabel(r)});
+    });
+    if(g.item){
+      const fx=fxFor(g.item);
+      if(fx && fx.scope && tagMatches(fx.scope,a)) hits.push({item:g.item, what:"legendary effect"});
+    }
+  });
+  return hits;
+}
+// Would dropping this ability leave that gear with nothing to work on?
+function gearOrphanedBy(a){
+  const mine=abilityGear(a);
+  if(!mine.length) return [];
+  const others=S.loadout.filter(id=>id&&id!==a.id)
+    .map(id=>ABILITIES.find(x=>x.id===id)).filter(Boolean);
+  return mine.filter(h=>!others.some(o=>abilityGear(o).some(k=>k.item===h.item&&k.what===h.what)));
+}
 function synergy(a,t){ return a.by.reduce((n,k)=>n+t[k],0); }
 function maxHP(){ const t=attrTotals(), s=secTotals();
   return HP_BASE + (t.vitality-ATTR_BASE) + (s.health||0); }
@@ -1576,12 +1608,31 @@ function renderAdvice(){
   if(eq.length>1){
     const sc=eq.map(a=>({a,s:synergy(a,t)})).sort((x,y)=>x.s-y.s);
     const worst=sc[0],best=sc[sc.length-1];
-    if(best.s>worst.s*1.3){
-      const better=ABILITIES.filter(x=>!S.loadout.includes(x.id)).map(x=>({x,s:synergy(x,t)}))
-        .sort((p,q)=>q.s-p.s)[0];
+    const orphaned=gearOrphanedBy(worst.a);
+    if(orphaned.length){
+      // Attributes say drop it; the gear says otherwise, and the gear is louder.
+      const items=[...new Set(orphaned.map(o=>o.item))];
+      tips.push({t:`${worst.a.name} scores low on stats, but your gear is built around it`,
+        w:`On attributes alone it only uses ${worst.s} points, against ${best.s} for ${best.a.name} — but
+           ${listJoin(items.map(i=>`<b>${esc(i)}</b>`))} carr${items.length>1?"y":"ies"}
+           ${listJoin(orphaned.map(o=>`<i>${esc(o.what)}</i>`))}, which
+           ${orphaned.length>1?"work":"works"} with nothing else you have equipped.
+           Drop ${worst.a.name} and ${orphaned.length>1?"those go":"that goes"} to waste.
+           A modifier aimed at one ability is usually worth more than a few attribute points.`});
+    } else if(best.s>worst.s*1.3){
+      /* Only suggest a swap that does not strand tagged gear, and prefer a candidate
+         your gear already boosts over one that merely reads higher on attributes. */
+      const cands=ABILITIES.filter(x=>!S.loadout.includes(x.id))
+        .map(x=>({x, s:synergy(x,t), g:abilityGear(x).length}))
+        .sort((p,q)=>(q.g-p.g)||(q.s-p.s));
+      const better=cands[0];
       tips.push({t:`${worst.a.name} fits your stats worst`,
         w:`It runs on ${worst.a.by.map(k=>ATTRS[k].name+" ("+t[k]+")").join(" + ")} = ${worst.s} usable points, vs ${best.s} for ${best.a.name}.`
-          +(better&&better.s>worst.s?` <b>${better.x.name}</b> (${better.x.type}) would use ${better.s}, running on ${better.x.by.map(k=>ATTRS[k].name).join(" + ")}.`:``)});}
+          +(better&&(better.g>0||better.s>worst.s)
+            ? ` <b>${better.x.name}</b> (${better.x.type}) would use ${better.s}, running on ${better.x.by.map(k=>ATTRS[k].name).join(" + ")}`
+              +(better.g?`, and your gear already carries ${better.g} modifier${better.g>1?"s":""} aimed at it`:``)+`.`
+            : ``)});
+    }
   }
   // 5) heavy hit synergy
   if(cov.ferocity>0&&cov.focus>0) tips.push({t:`Ferocity + Focus compound`,
