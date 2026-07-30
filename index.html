@@ -1802,14 +1802,32 @@ function renderAbilRank(){
   // With no gear every attribute sits at the base of 1, so all abilities tie and any
   // ranking would be an artefact of sort order rather than a recommendation.
   if(!hasPrimaries()){
+    /* No gear means no ranking — every attribute sits at 1, so any order would be an
+       artefact of the sort. Base damage and cooldown are fixed properties of the game
+       though, true before a single item is equipped, so there is no reason to withhold
+       them. They are also the quickest way to spot an ability left in a broken state,
+       which is exactly when someone has not built anything yet. */
+    const listed=ABILITIES.slice().sort((a,b)=>
+      ((ABIL_STATS[b.id]||{}).d||0)-((ABIL_STATS[a.id]||{}).d||0));
     document.getElementById("abilrank").innerHTML=
-      `<div class="empty">Add gear with <b>primary</b> attribute rolls and this ranks all
-       ${ABILITIES.length} abilities by how much of your stat spread each one can actually use.
-       <br><br>Right now every attribute is at its base of 1, so they'd all tie — there's nothing
-       to rank yet.</div>`;
+      `<div class="empty" style="margin-bottom:9px">Add gear with <b>primary</b> attribute rolls and
+       these get ranked by how much of your stat spread each one can use. Until then they're listed
+       by base damage.</div>`
+      + listed.map(a=>{
+      const isEq=eq.includes(a.id), st=ABIL_STATS[a.id];
+      const weak=st&&st.d!=null&&st.d<ABIL_WEAK;
+      return `<div class="arow ${isEq?'eq':''}"><span class="rank">·</span>
+        <span class="nm">${a.name}</span>
+        ${isEq?'<span class="badge eq">equipped</span>':''}
+        <span class="ty">${a.type}</span>
+        ${st?`<span class="dmg${weak?" weak":""}" title="${weak?"Far below every other ability — check the latest patch notes":"Base damage per hit"}">${st.d!=null?st.d:"?"}</span><span class="cd">${st.cd!=null?st.cd+"s":""}</span>`:``}
+        <span class="by">${a.by.map(k=>k.slice(0,3).toUpperCase()).join("·")}</span></div>`;
+    }).join("");
     document.getElementById("abilNote").innerHTML=
       `Each ability is scaled by exactly 3 of the 5 offensive attributes, so which abilities suit
-       you depends entirely on the gear you're wearing.`;
+       you depends entirely on the gear you're wearing. The two figures are <b>base damage per hit</b>
+       and <b>cooldown</b>, straight from the game — neither changes with your build. A figure in red
+       is far below every other ability.`;
     return;
   }
   const rows=ABILITIES.map(a=>({a,s:synergy(a,t)})).sort((x,y)=>y.s-x.s);
