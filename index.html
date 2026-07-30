@@ -192,6 +192,12 @@
     text-align:right}
   .arow .dmg.weak{color:var(--red)}
   .arow .cd{font-family:var(--pixel);font-size:9px;color:var(--faint);min-width:26px}
+  .scoped-sum{font-size:12.5px;line-height:1.55;color:var(--dim);
+    border-left:2px solid var(--amber-dim);padding:2px 0 2px 10px;margin-bottom:11px}
+  .scoped-sum .dim,.arow .dim{color:var(--faint)}
+  .scoped-h{font-family:var(--pixel);font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--faint);margin:11px 0 5px}
+  .scoped-h.bad{color:#E0996B}
   .arow .sc{font-family:var(--pixel);font-size:12px;min-width:34px;text-align:right;color:var(--ink)}
   .arow .by{font-family:var(--pixel);font-size:9px;color:var(--cyan);white-space:nowrap;flex:0 0 auto}
   .badge{font-size:8.5px;font-family:var(--pixel);padding:1px 5px;border:1px solid var(--edge)}
@@ -597,6 +603,10 @@
         <div class="note" id="hpNote"></div>
       </div>
       <div class="card">
+        <h2>What your gear does <span class="hint">effects and modifiers, not attribute totals</span></h2>
+        <div id="tagged"></div>
+      </div>
+      <div class="card">
         <h2>Stat priority for this build <span class="hint">the optimizer's ranking</span></h2>
         <div id="priority"></div>
         <div class="note good" id="priNote"></div>
@@ -604,12 +614,7 @@
       <div class="card">
         <h2>What to change <span class="hint">actionable</span></h2>
         <ol class="advice" id="advice"></ol>
-      </div>
-      <div class="card">
-        <h2>Ability-scoped gear <span class="hint">who your tagged rolls actually boost</span></h2>
-        <div id="tagged"></div>
-      </div>
-      <!-- These two are reference material, not answers. Open by request, so a
+      </div>      <!-- These two are reference material, not answers. Open by request, so a
            player who came to compare one chest piece isn't scrolled past 7,000px
            of catalogue to reach their number. -->
       <details class="card ref">
@@ -1304,30 +1309,90 @@ function renderCompare(){
    +(srows.length?`<div class="note" style="margin-top:12px;font-size:11.5px">Secondary rolls are shown as simple sums. Most stack additively, but a few combine as <code>(flat + attribute) &times; (1 + percent)</code> &mdash; Dot Potency is the confirmed case, which is why it has separate flat and % entries. Trust your in-game panel for the final figure.</div><div class="dl" style="margin-top:12px"><div class="h">Secondary</div><div class="h" style="text-align:right">now</div><div class="h"></div><div class="h" style="text-align:right">after</div>${srows.join("")}</div>`:"")
 }
 
-function renderTagged(){
-  const eq=equipped(), host=document.getElementById("tagged");
-  const rows=[];
-  SLOTS.forEach(sl=>{const g=S.gear[sl]; if(!g)return;
-    (g.rolls||[]).forEach(r=>{ if(r.t) rows.push({sl,item:g.item,r}); });});
-  if(!rows.length){ host.innerHTML=
-    `<div style="color:var(--faint);font-size:12.5px">No ability-scoped rolls. Rolls shown as <code>[Gun] +24% Attack Speed</code> in-game only apply to matching abilities — set their tag in the gear editor.</div>`;
-    return; }
-  host.innerHTML=rows.map(({sl,item,r})=>{
-    const all=tagScope(r.t), mine=eq.filter(a=>tagMatches(r.t,a));
-    const dead=mine.length===0;
-    const names=mine.length?mine.map(a=>a.name).join(", ")
-      :`nothing you have equipped <span style="color:var(--faint)">(covers ${all.map(a=>a.name).join(", ")||"—"})</span>`;
-    return `<div class="arow ${dead?'':'eq'}" style="${dead?'border-color:#5d3a3f;background:#20121a':''}">
-      <span class="ty">[${TAG_NAME[r.t]||r.t}]</span>
-      <span class="nm">${SEC[r.r?r.r.s:r.s]||r.s} <b style="color:var(--hl)">+${r.v}</b>
-        <span style="color:var(--faint);font-size:11px">· ${esc(item)}</span></span>
-      <span class="by" style="color:${dead?'var(--bad)':'var(--good)'}">${names}</span></div>`;
-  }).join("")
-  + `<div class="note info">A tagged roll only applies to abilities carrying that tag.
-     <b>[Gun]</b> is a category — it boosts <b>Gleam Twins, Minigun and Machinegun</b> alike.
-     <b>[Pyrosphere]</b>, <b>[Chakram]</b> and <b>[Drone]</b> target one ability each.</div>`;
+/* fxFor only knows GEAR_LIB. The database carries effects for far more items, and
+   an effect is no less real for having come from there. */
+function fxAnywhere(name){
+  if(!name) return null;
+  const direct=fxFor(name); if(direct) return direct;
+  const g=libPool().find(x=>tipNorm(x.name)===tipNorm(name));
+  return (g&&g.fx)||null;
 }
 
+/* Everything on your gear that is aimed at a specific ability rather than at your
+   attribute totals: tagged rolls and legendary effects alike. */
+function scopedGear(){
+  const out=[];
+  SLOTS.forEach(sl=>{
+    const g=S.gear[sl]; if(!g) return;
+    (g.rolls||[]).forEach(r=>{
+      if(r.t) out.push({sl, item:g.item||sl, tag:r.t, kind:"roll", label:rollLabel(r)});
+    });
+    const fx=fxAnywhere(g.item);
+    if(fx) out.push({sl, item:g.item||sl, tag:fx.scope||"", kind:"proc",
+                     label:`${fx.trigger} → ${fx.effect}`});
+  });
+  return out;
+}
+
+function renderTagged(){
+  const eq=equipped(), host=document.getElementById("tagged");
+  const rows=scopedGear();
+  const filled=SLOTS.filter(sl=>S.gear[sl]&&(S.gear[sl].item||(S.gear[sl].rolls||[]).length));
+  const withScoped=new Set(rows.map(r=>r.sl));
+  const plain=filled.filter(sl=>!withScoped.has(sl));
+
+  if(!filled.length){
+    host.innerHTML=`<div style="color:var(--faint);font-size:12.5px">Add some gear and this shows
+      what each piece does for your abilities — tagged rolls like <code>[Gun] +24% Attack Speed</code>
+      and legendary effects — rather than what it adds to your attribute totals.</div>`;
+    return;
+  }
+
+  /* A roll's tag names an ability or a category, so tagMatches is right for it. A
+     legendary effect's scope can also be an ELEMENT - "fire" has to find Pyrosphere,
+     whose tags are sphere and elemental - so effects go through fxMatches, which
+     knows about types. Using one matcher for both told a Pyrosphere build that its
+     fire proc had nothing to work with. */
+  const hits=r=>{
+    if(!r.tag) return eq;
+    const f=(r.kind==="proc") ? (a=>fxMatches(r.tag,a)||tagMatches(r.tag,a))
+                              : (a=>tagMatches(r.tag,a));
+    return eq.filter(f);
+  };
+  const live=rows.filter(r=>!r.tag || hits(r).length);
+  const dead=rows.filter(r=>r.tag && !hits(r).length);
+
+  const summary=`<div class="scoped-sum">`
+    +`<b>${withScoped.size} of your ${filled.length} filled slots</b> carry something aimed at an
+      ability. The other ${plain.length} give${plain.length===1?"s":""} attributes and secondary stats only.`
+    +(plain.length
+      ? ` <span class="dim">Raw stats are the easy part to improve — a modifier or effect aimed at
+          an ability you actually run is usually the bigger jump, and it is what the
+          <i>${plain.map(esc).join(", ")}</i> slot${plain.length>1?"s are":" is"} missing.</span>`
+      : ` <span class="dim">Every filled slot is doing something for a specific ability, which is
+          what a finished build looks like.</span>`)
+    +`</div>`;
+
+  const row=(r,isDead)=>{
+    const all=(r.kind==="proc")
+      ? ABILITIES.filter(a=>fxMatches(r.tag,a)||tagMatches(r.tag,a))
+      : tagScope(r.tag);
+    const mine=hits(r);
+    const who = !r.tag ? `every ability`
+      : mine.length ? mine.map(a=>esc(a.name)).join(", ")
+      : `nothing you have equipped <span class="dim">(covers ${all.map(a=>esc(a.name)).join(", ")||"—"})</span>`;
+    return `<div class="arow ${isDead?'':'eq'}" style="${isDead?'border-color:#5d3a3f;background:#20121a':''}">
+      <span class="ty">${r.kind==="proc"?"effect":"roll"}</span>
+      <span class="nm">${esc(r.label)}</span>
+      <span class="by" style="color:${isDead?'var(--red)':'var(--cyan)'}">${who}</span>
+      <span class="dim" style="font-size:11px">${esc(r.item)}</span></div>`;
+  };
+
+  host.innerHTML=summary
+    +(live.length?`<div class="scoped-h">Working</div>`+live.map(r=>row(r,false)).join(""):``)
+    +(dead.length?`<div class="scoped-h bad">Doing nothing — no equipped ability has that tag</div>`
+        +dead.map(r=>row(r,true)).join(""):``);
+}
 /* Relics are run-time picks that grant temporary buffs, so they deliberately do not
    feed the stat maths - a 5s buff is not a build stat. What they are good for is
    answering "what can I be offered", which depends entirely on the equipped
