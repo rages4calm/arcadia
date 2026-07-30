@@ -188,6 +188,10 @@
     font-size:13px;color:var(--ink)}
   .arow .ty{font-family:var(--pixel);font-size:9px;padding:1px 5px;
     border:1px solid var(--edge);color:var(--dim);text-transform:uppercase}
+  .arow .dmg{font-family:var(--pixel);font-size:9.5px;color:var(--dim);min-width:26px;
+    text-align:right}
+  .arow .dmg.weak{color:var(--red)}
+  .arow .cd{font-family:var(--pixel);font-size:9px;color:var(--faint);min-width:26px}
   .arow .sc{font-family:var(--pixel);font-size:12px;min-width:34px;text-align:right;color:var(--ink)}
   .arow .by{font-family:var(--pixel);font-size:9px;color:var(--cyan);white-space:nowrap;flex:0 0 auto}
   .badge{font-size:8.5px;font-family:var(--pixel);padding:1px 5px;border:1px solid var(--edge)}
@@ -699,6 +703,15 @@ const ABILITIES = [
   {id:"hammer_weapon",  name:"Axe / Hammer attack", type:"PHYSICAL", by:["power","precision","focus"], tags:["melee","weapon","physical"]},
   {id:"greatsword_weapon", name:"Greatsword attack", type:"PHYSICAL", by:["power","will","ferocity"],  tags:["melee","slam","weapon","physical"]},
 ];
+/* Base impact and cooldown as the game reports them. Impact is damage PER HIT,
+   which is why no rate is derived from it here - abilities that fire over a
+   duration land many hits per cast. */
+const ABIL_STATS={"kusarigama":{"d":110,"cd":5.7},"bomb":{"d":90,"cd":6.1},"chain_lightning":{"d":120,"cd":3.7},"icecube":{"d":117,"cd":4.9},"fortify":{"d":160,"cd":13.0},"healing_pulse":{"d":31,"cd":19.5},"drone":{"d":117,"cd":3.3},"minigun":{"d":89,"cd":2.8},"hammer_weapon":{"d":122,"cd":1.8},"greatsword_weapon":{"d":177,"cd":1.4},"melee_weapon":{"d":122,"cd":1.0},"chakram":{"d":109,"cd":5.7},"bomb_blackhole":{"d":88,"cd":4.9},"machinegun":{"d":4,"cd":3.4},"pyrosphere":{"d":138,"cd":2.8},"smg_gleamtwins":{"d":45,"cd":4.9},"staff_weapon":{"d":148,"cd":1.2}};
+const ABIL_WEAK=(()=>{
+  const v=Object.values(ABIL_STATS).map(s=>s.d).filter(x=>x!=null).sort((a,b)=>a-b);
+  return v.length? v[Math.floor(v.length/2)]*0.25 : 0;
+})();
+
 
 /* Ability-scoping tags. A gear roll tagged X applies to every ability whose own
    tag list contains X, or whose id is X. So [Gun] is a CATEGORY (3 abilities),
@@ -1809,6 +1822,12 @@ function renderAbilRank(){
       <span class="nm">${r.a.name}</span>
       ${isEq?'<span class="badge eq">equipped</span>':''}${isS?'<span class="badge sug">best on stats</span>':''}
       <span class="ty">${r.a.type}</span>
+      ${(()=>{const st=ABIL_STATS[r.a.id]; if(!st) return "";
+         // A base damage far below every peer is the most useful thing to notice
+         // about an ability, so it is coloured rather than left to be spotted.
+         const weak=st.d!=null&&st.d<ABIL_WEAK;
+         return `<span class="dmg${weak?" weak":""}" title="${weak?"Far below every other ability — check the latest patch notes":"Base damage per hit"}">${st.d!=null?st.d:"?"}</span>`
+               +`<span class="cd">${st.cd!=null?st.cd+"s":""}</span>`;})()}
       <span class="by">${r.a.by.map(k=>k.slice(0,3).toUpperCase()).join("·")}</span>
       <span class="sc" style="color:${r.s>=mx*0.85?'var(--good)':r.s>=mx*0.6?'var(--hl)':'var(--faint)'}">${r.s}</span></div>`;
   }).join("");
@@ -1818,8 +1837,13 @@ function renderAbilRank(){
     `<code>[Gun] +100% Shots Per Tick</code>, or anything else aimed at a single ability — and those are `+
     `frequently worth more than the attributes are. Plenty of strong builds wear gear with mediocre `+
     `attributes purely for a proc, and this ranking cannot see that. It also knows nothing about base `+
-    `damage, cooldown, or how an ability actually plays. Treat it as a tiebreaker between abilities your `+
-    `gear supports equally, not as a verdict.`;
+    `how an ability actually plays. Treat it as a tiebreaker between abilities your `+
+    `gear supports equally, not as a verdict.<br><br>`+
+      `The two figures after the damage type are <b>base damage per hit</b> and <b>cooldown</b>, as the `+
+      `game reports them. There is deliberately no damage-per-second here: an ability that fires over a `+
+      `duration lands many hits per cast, so dividing one by the other would rank a sustained ability `+
+      `below a single-hit one. A figure in red is far below every other ability — worth checking the `+
+      `patch notes before building around it.`;
 }
 function renderRules(){
   document.getElementById("itemRules").innerHTML=
