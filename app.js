@@ -1129,9 +1129,6 @@ function ocrDigitConfusions(raw){
   }
   return [...out];
 }
-function ocrZeroRestoreVariants(raw){
-  return ocrDigitConfusions(raw);
-}
 
 function restoreMangledPctInteger(raw, mid){
   // Last two digits are the hundredths (with 0%→8); leading digits are the
@@ -1142,7 +1139,7 @@ function restoreMangledPctInteger(raw, mid){
     if(v==null || isNaN(v)) return;
     cands.push({v, zeros:zeros||0});
   };
-  for(const r0 of ocrZeroRestoreVariants(raw)){
+  for(const r0 of ocrDigitConfusions(raw)){
     const zeros=[...raw].filter((ch,i)=>ch!==r0[i]).length;
     const lo=r0.slice(-2);
     let fracDigits=parseInt(lo,10);
@@ -1882,10 +1879,24 @@ function annotateOcrRoll(r){
   if(san.flagged){ o.flagged=true; o.ocrV=r.v; o.note=san.note; }
   else if(san.fixed){ o.fixed=true; o.ocrV=san.was; o.note=san.note; }
   if(!o.flagged){
-    const alternatives=plausibleOcrAlternatives(r.s,o.v);
-    if(alternatives.length){
-      o.alternatives=alternatives;
-      o.uncertain=true;
+    /* Hints only where the read is actually doubtful: Tesseract graded the word
+       under the bar, no grade reached us at all, or the sanitizer had to repair
+       the number (a repair means the raw text was provably off, whatever the
+       engine thought of it). A clean high-confidence read stays quiet --
+       attaching "possible 48 or 40" to every value containing an 8 taught
+       people to ignore the hints entirely, which is worse than no hints. */
+    const conf=isFinite(r.conf)?+r.conf:null;
+    if(san.fixed || conf==null || conf<OCR_TRUST_CONF){
+      const alternatives=plausibleOcrAlternatives(r.s,o.v);
+      if(alternatives.length){
+        o.alternatives=alternatives;
+        o.uncertain=true;
+        // Shown only when the engine's grade is the REASON for doubt. A
+        // repaired value is doubted because of the repair, whatever the grade,
+        // and "read at 97% confidence" next to a warning reads as nonsense.
+        // Floor, not round: 84.9 must not display as the bar it failed.
+        if(conf!=null && conf<OCR_TRUST_CONF) o.conf=Math.floor(conf);
+      }
     }
   }
   return o;
@@ -1947,8 +1958,9 @@ function shotRollLi(r,index){
   const possibilities=r.alternatives&&r.alternatives.length
     ? [r.v,...r.alternatives].map(String).join(" or ")
     : "";
+  const why=isFinite(r.conf)?`read at ${r.conf}% confidence`:"OCR uncertain";
   const note=possibilities
-    ? `<span class="note">OCR uncertain — possible ${esc(possibilities)}. Confirm or edit this value.</span>`
+    ? `<span class="note">${esc(why)} — possible ${esc(possibilities)}. Confirm or edit this value.</span>`
     : (r.fixed?`<span class="note">${esc(r.note||"corrected from OCR")}</span>`:"");
   return `<li class="${cls}${r.uncertain?" uncertain":""}" data-roll-index="${index}">
     <span class="k">${r.uncertain?"check":badge}</span>+
@@ -2231,7 +2243,7 @@ function extractDigitTokens(text){
 
 /* Reattach digit-pass values onto rolls whose labels we already know but whose
    numbers were flagged / truncated. Order-preserving within Primary then Secondary. */
-function refillRollsFromDigits(rolls, digitText){
+function refillRollsFromDigits(rolls, digitText, confMap){
   const tokens=extractDigitTokens(digitText);
   if(!tokens.length || !(rolls||[]).length) return;
   let ti=0;
@@ -2241,6 +2253,10 @@ function refillRollsFromDigits(rolls, digitText){
     if(!weak(r)) continue;
     const t=tokens[ti++];
     r.v=t.v;
+    // The number now comes from the digit pass, so its confidence must too --
+    // keeping the first pass's figure would grade the wrong read.
+    const dc=confMap&&confMap[String(Math.abs(parseFloat(t.v)))];
+    if(isFinite(dc)) r.conf=dc; else delete r.conf;
     if(t.hadPct) r.hadPct=true;
     delete r.flagged;
     delete r.note;
@@ -2275,31 +2291,88 @@ function ocrLogger(label){
   };
 }
 
+/* Below this bar, a word Tesseract read is treated as doubtful and its value
+   gets lookalike hints. Measured on this game's pixel font: clean reads on the
+   prepped canvas score high 80s-90s, the known-bad reads score 55-68. */
+const OCR_TRUST_CONF=85;
+
+/* Every word of a v5 recognize() with {blocks:true}, flattened. The old flat
+   result.data.words was removed in v5; the block tree is the supported shape.
+   Kept tolerant of both so a library bump does not silently return nothing. */
+function ocrWordsFrom(result){
+  const d=result&&result.data;
+  if(!d) return [];
+  if(Array.isArray(d.words)&&d.words.length) return d.words;
+  const out=[];
+  for(const b of d.blocks||[])
+    for(const p of b.paragraphs||[])
+      for(const l of p.lines||[])
+        for(const w of l.words||[])
+          if(w&&w.text) out.push(w);
+  return out;
+}
+
+/* value -> lowest confidence of any word containing that number. Keyed by the
+   parsed number rather than the raw token, because that is what survives into
+   the roll; on a collision (the same value twice on one tooltip) the lower
+   confidence wins, which can only make us more cautious, never less. */
+function ocrNumConfMap(words){
+  const map={};
+  for(const w of words){
+    const conf=+w.confidence;
+    if(!isFinite(conf)) continue;
+    // Only words that ARE a number once sign/percent dressing is stripped.
+    // Running the lookalike fixer over label words invents digit keys --
+    // "Speed" becomes "5peed" and donates a confident "5" that a real
+    // single-digit roll would then borrow. Number tokens sit in their own
+    // word on these tooltips; a merged word just yields no confidence, and
+    // no confidence means the hints attach, which errs the safe way.
+    const fixed=fixOcrNumberToken(String(w.text||""));
+    const core=fixed.replace(/^[+\-]+/,"").replace(/[%:.,\s]+$/,"");
+    if(!/^\d+(?:\.\d+)?$/.test(core)) continue;
+    const k=String(parseFloat(core));
+    if(!(k in map)||conf<map[k]) map[k]=conf;
+  }
+  return map;
+}
+
+function stampOcrConfidence(parsed, words){
+  if(!parsed||!(parsed.rolls||[]).length||!words.length) return;
+  const map=ocrNumConfMap(words);
+  for(const r of parsed.rolls){
+    const k=String(Math.abs(parseFloat(r.v)));
+    if(k in map) r.conf=map[k];
+  }
+}
+
 /* One worker: try each PSM on the same canvas, keep the best parse, then
    terminate (DoE lesson — reusing a worker across pastes can return empty). */
 async function ocrBestOnCanvas(T, canvas, psms, whitelist, label){
   const worker=await T.createWorker("eng", 1, {logger:ocrLogger(label)});
   const texts=[];
-  let bestParsed=null, bestText="", bestSc=-Infinity;
+  let bestParsed=null, bestText="", bestSc=-Infinity, bestWords=[];
   try{
     for(const psm of psms){
       await worker.setParameters({
         tessedit_pageseg_mode:String(psm),
         tessedit_char_whitelist:whitelist,
       });
-      const result=await worker.recognize(canvas);
+      const result=await worker.recognize(canvas, {}, {text:true, blocks:true});
       const text=(result&&result.data&&result.data.text)||"";
       if(!text.trim()) continue;
       texts.push(text);
       const parsed=parseTooltipText(text);
       const sc=ocrScore(parsed);
-      if(sc>bestSc){ bestSc=sc; bestParsed=parsed; bestText=text; }
+      if(sc>bestSc){ bestSc=sc; bestParsed=parsed; bestText=text;
+                     bestWords=ocrWordsFrom(result); }
       if(bestSc>=14 && (bestParsed.rolls||[]).filter(r=>!r.flagged).length>=3) break;
     }
   }finally{
     try{ await worker.terminate(); }catch(e){}
   }
-  return {parsed:bestParsed||parseTooltipText(""), text:bestText, texts, score:bestSc};
+  const parsed=bestParsed||parseTooltipText("");
+  stampOcrConfidence(parsed, bestWords);
+  return {parsed, text:bestText, texts, score:bestSc};
 }
 
 async function ocrTooltipImage(img){
@@ -2324,20 +2397,21 @@ async function ocrTooltipImage(img){
     shotSetStatus("Reading tooltip… numbers…");
     const dig=cropDigitColumn(canvas);
     const worker=await T.createWorker("eng", 1, {logger:ocrLogger("Reading numbers…")});
-    let digText="";
+    let digText="", digWords=[];
     try{
       await worker.setParameters({
         tessedit_pageseg_mode:"6",
         tessedit_char_whitelist:OCR_DIGIT_WHITELIST,
       });
-      const result=await worker.recognize(dig);
+      const result=await worker.recognize(dig, {}, {text:true, blocks:true});
       digText=(result&&result.data&&result.data.text)||"";
+      digWords=ocrWordsFrom(result);
     }finally{
       try{ await worker.terminate(); }catch(e){}
     }
     if(digText.trim()){
       rawParts.push("--- digits ---\n"+digText);
-      refillRollsFromDigits(parsed.rolls, digText);
+      refillRollsFromDigits(parsed.rolls, digText, ocrNumConfMap(digWords));
     }
   }
 
