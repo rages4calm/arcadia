@@ -20,6 +20,7 @@ RewriteRule ^b/([A-Za-z0-9]{4,12})/?$ /b.php?id=$1 [L,QSA]
 # generated from the same datasets the planner uses -- so an item search can
 # reach a real page instead of a JavaScript app on a single URL.
 RewriteRule ^items/?$ /item.php [L]
+RewriteRule ^gaps/?$ /item.php?gaps=1 [L]
 RewriteRule ^item/([a-z0-9-]{1,80})/?$ /item.php?slug=$1 [L,QSA]
 
 # Relic pools, same shape: an index plus one page per ability.

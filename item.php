@@ -50,6 +50,26 @@ function num(float $n): string {
     return rtrim(rtrim(number_format($n, 2, '.', ''), '0'), '.');
 }
 
+/** armor_t5_head_lunar_001 -> "T5 Head Lunar Conduit", for items with no known name. */
+function prettyFromId(string $iid): string {
+    static $slot = ['head' => 'Head', 'chest' => 'Chest', 'feet' => 'Legs', 'belt' => 'Belt',
+                    'neck' => 'Neck', 'necklace' => 'Neck', 'ring' => 'Ring',
+                    'greatsword' => 'Greatsword', 'heavy' => 'Axe / Hammer',
+                    'staff' => 'Staff', 'sword' => 'Sword'];
+    static $set = ['lunar' => 'Lunar Conduit', 'virelda' => 'Virelda Warcrest',
+                   'neotilus' => 'Neotilus Trailseeker', 'foundation' => 'Foundation Bulwark',
+                   'necro' => 'Necrotic Warrior'];
+    if (!preg_match('/^(?:armor|weapon|accessory)_t(\d)_([a-z]+)(?:_([a-z]+))?_\d+$/', $iid, $m)) {
+        return $iid;
+    }
+    $bits = ['T' . $m[1], $slot[$m[2]] ?? ucfirst($m[2])];
+    if (!empty($m[3])) $bits[] = $set[$m[3]] ?? ucfirst($m[3]);
+    return implode(' ', $bits);
+}
+
+$GAPS = $DB['gaps'] ?? [];
+$isGaps = isset($_GET['gaps']);
+
 $slug = (string) ($_GET['slug'] ?? '');
 $item = null;
 if ($slug !== '') {
@@ -62,7 +82,7 @@ if ($slug !== '') {
 }
 
 /* ---------------------------------------------------------------- head --- */
-$isIndex = ($slug === '');
+$isIndex = ($slug === '' && !$isGaps);
 if ($item) {
     $tiers = array_values(array_filter(array_map(fn($v) => $v['tier'] ?? null, $item['variants'])));
     $tierTxt = $tiers ? ('Tier ' . implode(' and Tier ', array_unique($tiers))) : '';
@@ -77,6 +97,12 @@ if ($item) {
     if (!empty($item['tiersDiffer'])) $descBits[] = 'Its Tier 5 and Tier 6 effects are different.';
     $desc = implode(' ', $descBits);
     $canon = SITE . '/item/' . $item['slug'];
+} elseif ($isGaps) {
+    $n = (int) ($GAPS['counts']['unknownEffect'] ?? 0);
+    $title = 'What we don\'t know yet — Soulbound: Online | Arcadia';
+    $desc = $n . ' items in Soulbound: Online are known to have a Legendary version, '
+          . 'but nobody has recorded what its effect does. This is the list.';
+    $canon = SITE . '/gaps';
 } elseif ($isIndex) {
     $title = 'Item database — every measured item in Soulbound: Online | Arcadia';
     $desc = 'Stats, possible rolls, drop sources and the legendary effects the in-game '
@@ -315,6 +341,68 @@ have equipped, and how it compares against what is in that slot now.</p>
   ]],
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
 
+<?php elseif ($isGaps):
+  $unknown = $GAPS['unknownEffect'] ?? [];
+  $bySlot = [];
+  foreach ($unknown as $u) { $bySlot[$u['slot'] ?: 'Other'][] = $u; }
+  ksort($bySlot);
+  $C = $GAPS['counts'] ?? []; ?>
+<nav class="crumb"><a href="/">Planner</a> &rsaquo; <a href="/items">Items</a> &rsaquo; Gaps</nav>
+<h1>What we don't know yet</h1>
+<div class="sub"><?= (int) ($C['unknownEffect'] ?? 0) ?> unanswered &middot;
+  <?= (int) ($C['withEffect'] ?? 0) ?> recorded of <?= (int) ($C['items'] ?? 0) ?> items</div>
+
+<p class="meta">There is no public API for this game &mdash; a developer has said as much
+&mdash; so every number here came from somebody noticing something and writing it down.
+That makes the blanks worth publishing rather than hiding. Each item below is known to
+drop a Legendary version, and nobody has recorded what its effect actually does.</p>
+
+<div class="warn"><b>If you own one of these at Legendary rarity, you can close it.</b>
+Post a screenshot of the tooltip in the game's Discord, or
+<a href="https://github.com/rages4calm/arcadia/issues" rel="noopener">open an issue</a>.
+Worth knowing before you do: the game does not always print an item's effect on its
+tooltip, and the developers have confirmed some are cut off entirely &mdash; so
+&ldquo;my tooltip shows nothing&rdquo; is itself a useful answer, not a dead end.</div>
+
+<?php foreach ($bySlot as $slot => $list): ?>
+  <div class="grp">
+    <h3><?= e((string) $slot) ?> &middot; <?= count($list) ?></h3>
+    <div class="idx">
+    <?php foreach ($list as $u): ?>
+      <a href="/item/<?= e((string) $u['slug']) ?>"><?= e($u['name']) ?><?php
+        if (!empty($u['tier'])) echo ' <span class="b" style="color:var(--faint)">T' . (int) $u['tier'] . '</span>'; ?></a>
+    <?php endforeach; ?>
+    </div>
+  </div>
+<?php endforeach; ?>
+
+<?php if (!empty($GAPS['unnamed'])): ?>
+<h2>Items with no name yet</h2>
+<p class="meta">These exist in the data with full stats, but no one has recorded what the
+game calls them, so they show as a derived description instead of their real name.</p>
+<div class="idx">
+<?php foreach ($GAPS['unnamed'] as $iid): ?>
+  <span style="color:var(--faint);font-size:13.5px"><?= e(prettyFromId((string) $iid)) ?></span>
+<?php endforeach; ?>
+</div>
+<?php endif; ?>
+
+<h2>What is already known</h2>
+<p class="meta"><?= (int) ($C['withEffect'] ?? 0) ?> items have a recorded effect, including
+every belt and necklace &mdash; a slot the community wiki does not cover at all. A further
+<?= (int) ($C['wikiOnly'] ?? 0) ?> are named on the wiki but have never had their trigger
+rate measured; those show on their own page, marked as wiki-sourced.</p>
+<a class="cta" href="/items">Browse every item</a>
+
+<script type="application/ld+json"><?= json_encode([
+  '@context' => 'https://schema.org',
+  '@type' => 'CollectionPage',
+  'name' => "What we don't know yet",
+  'url' => $canon,
+  'description' => $desc,
+  'isPartOf' => ['@type' => 'WebSite', 'name' => 'Arcadia', 'url' => SITE],
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
+
 <?php elseif ($isIndex):
   $groups = [];
   foreach ($ITEMS as $i) { $groups[$i['slot'] ?: 'Gear'][] = $i; }
@@ -324,7 +412,9 @@ have equipped, and how it compares against what is in that slot now.</p>
 <div class="sub"><?= count($ITEMS) ?> items &middot; stats, possible rolls, drop sources,
   and the legendary effects the game does not print</div>
 <p class="meta">Values are community-measured and can change with any game update.
-  A green dot marks an item with a recorded legendary effect.</p>
+  A green dot marks an item with a recorded legendary effect.
+  <a href="/gaps">55 items are still blank</a> &mdash; if you own one at Legendary
+  rarity you can close it.</p>
 <?php foreach ($groups as $slot => $list): ?>
   <div class="grp">
     <h3><?= e((string) $slot) ?> &middot; <?= count($list) ?></h3>
