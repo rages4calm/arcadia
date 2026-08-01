@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
 
+# The JSON endpoints are discovered by crawlers that render the page and follow
+# fetch() calls. They are not pages and should not be indexed as results.
+# /b/ is deliberately NOT disallowed: those are real shared builds, and link
+# previews in chat need to fetch them.
+Disallow: /api/
+
 Sitemap: https://arcadia.carl-prewitt.com/sitemap.xml

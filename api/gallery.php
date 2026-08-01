@@ -16,7 +16,17 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
-header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_HOST'] ?? ''));
+
+// Never let a stack trace reach the browser: a trace prepended to the body makes
+// the JSON unparseable, which the client reports as a blank gallery rather than
+// as an error. Log it instead and answer with a plain 500.
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+set_exception_handler(static function (Throwable $e): void {
+    error_log('arcadia gallery: ' . $e);
+    http_response_code(500);
+    echo json_encode(['error' => 'Server error']);
+});
 
 function fail(int $code, string $msg): never {
     http_response_code($code);
@@ -40,10 +50,32 @@ try {
     fail(500, 'Database unavailable');
 }
 
-$ip     = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+// REMOTE_ADDR only: there is no proxy in front of this host, so any forwarding
+// header is client-controlled and honouring one would let a single sender mint
+// unlimited rate-limit and vote identities. IPv6 counts by /64, since one
+// residential prefix hands out that whole space.
+$ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+if (str_contains($ip, ':')) {
+    $bin = @inet_pton($ip);
+    if ($bin !== false) $ip = inet_ntop(substr($bin, 0, 8) . str_repeat("\0", 8)) . '/64';
+}
 $ipHash = hash('sha256', $cfg['ip_salt'] . $ip);
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $PAGE   = 24;
+
+// Writes must come from the site itself. Sec-Fetch-Site is set by every browser
+// Arcadia supports and cannot be set by page script; the Origin check is the
+// fallback for anything that omits it. Without this, a page anywhere on the web
+// can fire no-cors POSTs that vote or publish on behalf of whoever views it.
+if ($method === 'POST') {
+    $sfs    = $_SERVER['HTTP_SEC_FETCH_SITE'] ?? '';
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $host   = $_SERVER['HTTP_HOST'] ?? '';
+    $sameOrigin = $sfs === 'same-origin'
+        || ($sfs === '' && $origin !== '' && parse_url($origin, PHP_URL_HOST) === $host)
+        || ($sfs === '' && $origin === '');   // curl and same-origin non-fetch fallback
+    if (!$sameOrigin) fail(403, 'Cross-site request refused');
+}
 
 /* ------------------------------ list ------------------------------ */
 if ($method === 'GET') {
@@ -101,14 +133,20 @@ if ($method === 'GET') {
     }
     unset($r);
 
-    header('Cache-Control: public, max-age=30');
+    // private: each response embeds this visitor's own voted flags, so a shared
+    // cache would hand one visitor's state to the next.
+    header('Cache-Control: private, max-age=30');
     echo json_encode(['builds' => $rows, 'more' => $more]);
     exit;
 }
 
 if ($method !== 'POST') fail(405, 'Method not allowed');
 
-$body   = json_decode(file_get_contents('php://input') ?: '', true);
+// A legitimate publish is title + name + notes + a six-entry summary: under 2 KB.
+// Without a cap the ceiling is post_max_size, megabytes decoded before validation.
+$raw = file_get_contents('php://input') ?: '';
+if (strlen($raw) > 4000) fail(413, 'Request too large');
+$body   = json_decode($raw, true);
 $action = is_array($body) ? (string) ($body['action'] ?? '') : '';
 $id     = is_array($body) ? (string) ($body['id'] ?? '') : '';
 if (!preg_match('/^[A-Za-z0-9]{4,12}$/', $id)) fail(400, 'Bad id');
@@ -159,8 +197,14 @@ $notes  = trim((string) ($body['notes'] ?? ''));
 $sum    = $body['summary'] ?? null;
 
 // Strip control characters and collapse whitespace; output is escaped client-side too.
-$clean = static fn(string $s): string =>
-    trim(preg_replace('/\s+/u', ' ', preg_replace('/[\x00-\x1F\x7F]/u', '', $s)) ?? '');
+// Each step guards its own result: with the /u modifier preg_replace returns null
+// on malformed UTF-8, and passing that straight into the next call is a TypeError
+// under strict_types. $cleanMultiline below already does this correctly.
+$clean = static function (string $s): string {
+    $s = preg_replace('/[\x00-\x1F\x7F]/u', '', $s) ?? '';
+    $s = preg_replace('/\s+/u', ' ', $s) ?? '';
+    return trim($s);
+};
 
 // Notes are the one field where line breaks carry meaning, so newlines survive
 // while every other control character does not. Runs of blank lines collapse to
@@ -186,7 +230,12 @@ $summary = json_encode([
     'abilities' => array_values(array_slice(
         array_filter((array) ($sum['abilities'] ?? []), static fn($a) => is_string($a) && preg_match('/^[a-z_]{2,32}$/', $a)),
         0, 6)),
-    'attrs' => array_map('intval', array_slice((array) ($sum['attrs'] ?? []), 0, 6)),
+    // array_values twice, deliberately: array_slice keeps string keys, and a
+    // summary stored as a JSON object instead of an array makes the gallery
+    // renderer throw on .map, which blanks the listing for every visitor.
+    'attrs' => array_values(array_map(
+        static fn($v): int => max(0, min(9999, (int) $v)),
+        array_slice(array_values((array) ($sum['attrs'] ?? [])), 0, 6))),
 ], JSON_UNESCAPED_SLASHES);
 
 // Publishing is rate limited harder than plain sharing.
@@ -198,17 +247,22 @@ try {
 } catch (PDOException $e) {
 }
 
-$ok = $pdo->prepare(
+// Publishing is one-way: a build enters the gallery once and its text is fixed
+// from then on. Ids are public (they are in every gallery listing and /b/ link),
+// so without this an already-listed build could be re-titled by anyone who can
+// read it, keeping the votes it earned under its original description.
+$state = $pdo->prepare('SELECT published, hidden FROM builds WHERE id = ?');
+$state->execute([$id]);
+$row = $state->fetch();
+if (!$row)                        fail(404, 'Build not found — share it first');
+if ((int) $row['hidden'] === 1)   fail(403, 'That build has been withdrawn');
+if ((int) $row['published'] === 1) fail(409, 'That build is already in the gallery');
+
+$pdo->prepare(
     'UPDATE builds SET title = ?, author = ?, notes = ?, summary = ?, published = 1,
             published_at = COALESCE(published_at, NOW())
-     WHERE id = ? AND hidden = 0'
-);
-$ok->execute([$title, $author !== '' ? $author : null, $notes !== '' ? $notes : null, $summary, $id]);
-if ($ok->rowCount() === 0) {
-    $exists = $pdo->prepare('SELECT 1 FROM builds WHERE id = ?');
-    $exists->execute([$id]);
-    if (!$exists->fetch()) fail(404, 'Build not found — share it first');
-}
+     WHERE id = ? AND published = 0 AND hidden = 0'
+)->execute([$title, $author !== '' ? $author : null, $notes !== '' ? $notes : null, $summary, $id]);
 
 try {
     $pdo->prepare('INSERT INTO rate_limit (ip_hash, window_start) VALUES (?, NOW())')->execute([$ipHash]);

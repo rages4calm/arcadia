@@ -4,7 +4,18 @@
 # by id. Serving index.html directly (rather than redirecting) keeps the short
 # URL in the address bar.
 RewriteEngine On
+
+# One canonical scheme and hostname. cPanel may already do this from its own
+# panel setting, in which case this is a harmless no-op; if it does not, four
+# variants of every URL serve the same page and split their own search signals.
+RewriteCond %{HTTPS} !=on [OR]
+RewriteCond %{HTTP_HOST} !^arcadia\.carl-prewitt\.com$ [NC]
+RewriteRule ^ https://arcadia.carl-prewitt.com%{REQUEST_URI} [R=301,L]
+
 RewriteRule ^b/([A-Za-z0-9]{4,12})/?$ /index.html [L]
+
+# No directory listings anywhere, /api included.
+Options -Indexes
 
 # Belt and braces: this host happens to block dotfiles already, but don't rely
 # on a host default to keep the repository metadata off the web.
@@ -24,6 +35,9 @@ RedirectMatch 404 /\.git(/|$)
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+  # The moderation token is posted in a request body, so the site should never be
+  # reached over plain http at all -- not even once, before the redirect above.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
   # The app is self-contained apart from one opt-in feature: importing gear from
   # a tooltip screenshot loads an OCR engine from jsDelivr, and only when someone
   # actually drops in an image. A visitor who never uses it makes no third-party

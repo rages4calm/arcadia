@@ -14,8 +14,19 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
-// Same-origin only; the page and API are served from the same host.
-header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_HOST'] ?? ''));
+// No CORS header: the page and this endpoint are the same origin, so none is
+// needed. The old one sent a bare hostname, which is not a valid origin and so
+// never matched anything -- it only read as though sharing were intended.
+
+// Keep error detail out of the response body; a trace prepended to the JSON is
+// what turns a server fault into an unexplained client-side parse failure.
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+set_exception_handler(static function (Throwable $e): void {
+    error_log('arcadia build: ' . $e);
+    http_response_code(500);
+    echo json_encode(['error' => 'Server error']);
+});
 
 function fail(int $code, string $msg): never {
     http_response_code($code);
@@ -46,6 +57,19 @@ try {
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+// Writes must originate from the site itself. Sec-Fetch-Site comes from the
+// browser and page script cannot set it; Origin is the fallback for clients
+// that omit it.
+if ($method === 'POST') {
+    $sfs    = $_SERVER['HTTP_SEC_FETCH_SITE'] ?? '';
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $host   = $_SERVER['HTTP_HOST'] ?? '';
+    $sameOrigin = $sfs === 'same-origin'
+        || ($sfs === '' && $origin !== '' && parse_url($origin, PHP_URL_HOST) === $host)
+        || ($sfs === '' && $origin === '');
+    if (!$sameOrigin) fail(403, 'Cross-site request refused');
+}
+
 /* ----------------------------- read ----------------------------- */
 if ($method === 'GET') {
     $id = (string) ($_GET['id'] ?? '');
@@ -53,7 +77,9 @@ if ($method === 'GET') {
         fail(400, 'Bad id');
     }
 
-    $stmt = $pdo->prepare('SELECT payload FROM builds WHERE id = ? LIMIT 1');
+    // hidden = 0 so moderation actually withdraws a build. Without it, hiding
+    // removed the gallery card while /b/<id> kept serving the same build.
+    $stmt = $pdo->prepare('SELECT payload FROM builds WHERE id = ? AND hidden = 0 LIMIT 1');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -93,7 +119,14 @@ if (strlen($payload) < 8 || strlen($payload) > $cfg['max_payload_bytes']) {
     fail(400, 'Bad payload size');
 }
 
-$ip     = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+// REMOTE_ADDR only: nothing proxies this host, so a forwarding header here would
+// be caller-supplied and would let one sender count as many. IPv6 is grouped by
+// /64, since a single home connection is handed that whole range.
+$ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+if (str_contains($ip, ':')) {
+    $bin = @inet_pton($ip);
+    if ($bin !== false) $ip = inet_ntop(substr($bin, 0, 8) . str_repeat("\0", 8)) . '/64';
+}
 $ipHash = hash('sha256', $cfg['ip_salt'] . $ip);
 
 // Rate limit, and opportunistically drop expired rows.
