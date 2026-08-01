@@ -144,6 +144,17 @@
     select{max-width:none;flex:1} .home{margin-left:0}
     .bar input[type=search]{margin-left:0;max-width:none;width:100%}
   }
+
+  /* Section nav, same as every other page. */
+  .sitenav{display:flex;gap:2px;flex-wrap:wrap;margin:0 0 14px;
+    border-bottom:1px solid var(--edge)}
+  .sitenav a{font-family:var(--pixel);font-size:10.5px;letter-spacing:.5px;
+    color:var(--faint);text-decoration:none;padding:8px 13px;
+    border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+  .sitenav a:hover{color:var(--amber-ink);background:var(--panel)}
+  .sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
+    border-color:var(--edge);border-bottom:1px solid var(--panel)}
+  @media (max-width:520px){ .sitenav a{padding:8px 10px;font-size:10px} }
 </style>
 </head>
 <body>
@@ -153,6 +164,15 @@
     <h1>Build Gallery</h1>
     <a class="home" href="/">← back to the planner</a>
   </header>
+  <!-- Every other page carries this; without it the gallery is a dead end that
+       only leads back to the planner. -->
+  <nav class="sitenav" aria-label="Sections">
+    <a href="/">Planner</a>
+    <a href="/items">Items</a>
+    <a href="/relics">Relics</a>
+    <a href="/gaps">Gaps</a>
+    <a href="/gallery.html" aria-current="page">Gallery</a>
+  </nav>
   <div class="tagline">Builds shared by players. Open any of them straight into the planner to see
     what actually scales it. No account needed — voting is one per person per build.</div>
 
@@ -194,7 +214,19 @@ const ABILITIES=[
  {id:"pyrosphere",name:"Pyrosphere"},{id:"melee_weapon",name:"Melee weapon attack"},
  {id:"staff_weapon",name:"Staff weapon attack"}];
 const ATTR_NAMES=["Power","Precision","Will","Ferocity","Vitality","Focus"];
-const abilName=id=>(ABILITIES.find(a=>a.id===id)||{}).name||id;
+/* A published build stores ability IDs, resolved to names at read time. Ids the
+   game or the tool has since renamed therefore stop resolving, and the card ends
+   up printing a raw token like "sword_weapon" at a reader. Known renames are
+   mapped, and anything still unresolved is at least made to read like English
+   rather than like a database key. */
+const ABIL_RENAMED={sword_weapon:"melee_weapon", smg:"smg_gleamtwins",
+                    blackholebomb:"bomb_blackhole", machine_gun:"machinegun"};
+const abilName=id=>{
+  const key=ABIL_RENAMED[id]||id;
+  const hit=ABILITIES.find(a=>a.id===key);
+  if(hit) return hit.name;
+  return String(id).replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+};
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 let sort="top", filter="", query="", page=0, loading=false;
