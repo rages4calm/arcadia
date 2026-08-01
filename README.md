@@ -202,9 +202,29 @@ here, and the roll pools aren't published anywhere — so the library grows from
 
 - Found an item that isn't in the library? Open an issue with a screenshot of the tooltip.
 - Spotted a number that looks wrong? Open an issue — the in-game panel is always the authority.
-- Balance changed in a patch? The game data lives in `data.js` (`ITEM_DB`, `ABILITIES`, `PROCS`,
-  `GEAR_LIB`); the logic is in `app.js`. Each dataset is one entry per line, so adding an item is a
-  one-line change that merges cleanly.
+- Know what a missing legendary effect does? [The gaps list](https://arcadia.carl-prewitt.com/gaps)
+  has a **record** link on every blank that opens a prefilled issue. A tooltip that shows *nothing*
+  is a useful answer too — some effects genuinely aren't printed.
+
+### Where things live
+
+| file | what it is |
+|---|---|
+| `data.js` | **the source** for all game data — items, effects, relics, abilities |
+| `app.js` | all the logic |
+| `arcadia.css` | all the styles |
+| `items.json`, `relics.json`, `sitemap-*.xml` | **generated** from `data.js` |
+
+**Edit `data.js`, never the JSON.** `items.json` and `relics.json` are build output that gets
+regenerated on deploy, so a change made directly to them is overwritten. Open a PR against
+`data.js` and the pages rebuild from it.
+
+Each dataset is written one entry per line on purpose — two people adding different items produce
+a clean one-line diff each instead of a conflict in a 60 KB line. Please keep that shape.
+
+The scripts that do the regenerating aren't in this repo; they're part of the maintainer's local
+setup and aren't needed to contribute. If a PR changes `data.js`, the rebuild happens on the way
+out.
 
 ## Disclaimer
 

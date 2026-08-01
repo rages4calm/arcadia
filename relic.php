@@ -15,8 +15,9 @@
  * with no path. The distinction matters when planning a run, so the page keeps
  * them visually separate rather than flattening them into one list.
  *
- * Data comes from relics.json, written by tools/export_items.py from the same
- * consts the planner uses. Nothing is maintained twice.
+ * Data comes from relics.json, exported from the same consts in data.js that
+ * the planner reads. Nothing is maintained twice: the JSON is build output, so
+ * corrections belong in data.js.
  */
 
 declare(strict_types=1);

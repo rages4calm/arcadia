@@ -7,8 +7,9 @@
  *
  * These exist because the planner keeps everything it knows in JavaScript on a
  * single URL, so a search for an item name could never reach it. The data is
- * authored in index.html exactly as before; tools/export_items.py dumps it to
- * items.json and this renders that. Nothing is maintained twice.
+ * authored in data.js and exported to items.json, which this renders. Nothing
+ * is maintained twice: items.json is build output, so correct data.js, never
+ * the JSON.
  *
  * One page per name rather than per id: eighteen names cover both a Tier 5 and
  * a Tier 6 item, people search the name, and two pages would compete for the
