@@ -1,8 +1,10 @@
 # Arcadia — Apache config for cPanel hosting.
 
 # Short build links: /b/x7k2p is handled by the app, which fetches the build
-# by id. Serving index.html directly (rather than redirecting) keeps the short
-# URL in the address bar.
+# by id. Serving the page directly (rather than redirecting) keeps the short
+# URL in the address bar. b.php serves that same page with the og: tags
+# describing the actual build, so a link pasted in chat says what it is; if
+# anything about that fails it serves index.html unchanged.
 RewriteEngine On
 
 # One canonical scheme and hostname. cPanel may already do this from its own
@@ -12,7 +14,7 @@ RewriteCond %{HTTPS} !=on [OR]
 RewriteCond %{HTTP_HOST} !^arcadia\.carl-prewitt\.com$ [NC]
 RewriteRule ^ https://arcadia.carl-prewitt.com%{REQUEST_URI} [R=301,L]
 
-RewriteRule ^b/([A-Za-z0-9]{4,12})/?$ /index.html [L]
+RewriteRule ^b/([A-Za-z0-9]{4,12})/?$ /b.php?id=$1 [L,QSA]
 
 # Item pages. One PHP template renders every item from items.json, which is
 # generated from the same datasets the planner uses -- so an item search can
