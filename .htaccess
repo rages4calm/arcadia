@@ -88,4 +88,13 @@ RedirectMatch 404 /\.git(/|$)
   # base64 inside the page, which meant re-downloading them on every visit.
   ExpiresByType font/woff2 "access plus 1 year"
   ExpiresByType image/jpeg "access plus 1 month"
+  # arcadia.css, data.js and app.js are requested with ?v=<date>, so a deploy
+  # that changes them changes the URL. That is the whole point of the split:
+  # index.html stays uncached and tiny, and the 380 KB behind it is fetched
+  # once. Bump the version in tools/split_app.py when any of them changes.
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  # items.json backs the item pages and is regenerated with the data.
+  ExpiresByType application/json "access plus 1 hour"
 </IfModule>
