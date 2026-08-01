@@ -17,12 +17,26 @@ already have.
   shows how saturated each one already is.
 - **Compare an item** — pick a slot, enter a candidate's rolls, and get a verdict: what changes,
   which abilities gain or lose, and by how much.
-- **Ability match** — scores all 15 abilities against your current stats, so you can spot one
-  that's wasting your build.
+- **Ability match** — scores every ability against your current stats, so you can spot one that's
+  wasting your build.
+- **Screenshot import** — drop a tooltip screenshot and it reads the rolls with on-device OCR.
+  Nothing is uploaded; double-check the numbers, since it's reading a pixel font.
+- **The honest tooltip** — each item is drawn as its in-game tooltip *plus* the ruled-off section
+  the game leaves out: the hidden stats and the legendary effect. Where a name covers two tiers
+  with different effects, it shows both and says which is which.
+- **Relic advisor** — reads your loadout and ranks which relic pools a run can actually offer it.
 - **Ability-scoped gear** — shows which of your abilities each `[Gun]`-style tagged roll actually
   boosts.
-- **Share links** — the whole build encodes into the URL. Paste it in Discord; nothing is uploaded.
+- **Share links** — the whole build encodes into the URL. Paste it in Discord; nothing is uploaded,
+  and the link unfurls with the build's abilities and gear, not a generic card.
 - **Gear library** — documented items you can load into any slot with one click.
+
+## Item pages
+
+Every item also has its own page — [`/item/<name>`](https://arcadia.carl-prewitt.com/items) — with
+its stats, what it can roll, where it drops, and the hidden legendary effect. These are plain pages
+a search engine can index and you can link in chat, and they say the one thing a tier-less wiki
+list cannot: when a Tier 5 and a Tier 6 item share a name, how their effects differ.
 
 ## Things it can tell you that aren't documented elsewhere
 
@@ -34,6 +48,9 @@ already have.
   ~5× the thirty-fourth. Flat stats (max health, regen) stay linear.
 - `[Gun]` is a **category** tag — it boosts Gleam Twins, Minigun and Machinegun alike, while
   `[Pyrosphere]` or `[Chakram]` target a single ability.
+- **Some legendary effects never print on the in-game tooltip at all** — and some are the whole
+  reason to run the item. Arcadia lists the ones that have been measured, including every belt and
+  necklace effect, which the community wiki does not yet cover.
 
 ## On mobile
 
@@ -41,14 +58,24 @@ already have.
 
 ## Running it
 
-It's one self-contained HTML file. No build step, no dependencies, no server.
+No build step, no dependencies, no server. The planner is four static files that load with plain
+`<script>` tags:
+
+| file | holds |
+|---|---|
+| `index.html` | the page shell |
+| `arcadia.css` | all styles |
+| `data.js` | the game data (items, effects, relics) |
+| `app.js` | the logic |
 
 ```
 git clone https://github.com/rages4calm/arcadia.git
 ```
 
-Open `index.html` in a browser, or drop it on any static host. Your builds are stored in your
-own browser's local storage and never leave your machine.
+Open `index.html` in a browser, or drop the folder on any static host — it works straight from
+`file://` too. Your builds are stored in your own browser's local storage and never leave your
+machine. The optional item pages (`/item/<name>`) are rendered by `item.php` and need PHP; the
+planner itself does not.
 
 ## Short links (optional)
 
@@ -87,6 +114,10 @@ Into your subdomain's folder (`public_html/arcadia`):
 
 ```
 index.html
+arcadia.css
+data.js
+app.js
+fonts/                the two woff2 files
 robots.txt
 sitemap.xml
 .htaccess
@@ -96,6 +127,10 @@ api/config.php        ← the one you just filled in, not the example
 
 `.htaccess` is what makes `/b/x7k2p` work, so don't skip it. If your FTP client hides dotfiles,
 enable "show hidden files".
+
+For the optional item pages, also upload `item.php`, `items.json` and `sitemap-items.xml`; for the
+build gallery, `gallery.html` and `api/gallery.php` (see below). `b.php` renders the rich link
+preview for a shared build — upload it too, but the app works without it.
 
 ### 5. Check it
 
@@ -160,8 +195,9 @@ here, and the roll pools aren't published anywhere — so the library grows from
 
 - Found an item that isn't in the library? Open an issue with a screenshot of the tooltip.
 - Spotted a number that looks wrong? Open an issue — the in-game panel is always the authority.
-- Balance changed in a patch? The values live in `ATTRS`, `ABILITIES` and `GEAR_LIB` near the
-  top of the `<script>` block.
+- Balance changed in a patch? The game data lives in `data.js` (`ITEM_DB`, `ABILITIES`, `PROCS`,
+  `GEAR_LIB`); the logic is in `app.js`. Each dataset is one entry per line, so adding an item is a
+  one-line change that merges cleanly.
 
 ## Disclaimer
 

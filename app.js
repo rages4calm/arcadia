@@ -842,6 +842,22 @@ function itemSlug(name){
     .replace(/['\u2019]/g,"")
     .replace(/[^A-Za-z0-9]+/g,"-").replace(/^-+|-+$/g,"").toLowerCase();
 }
+/* An ability id can appear on more than one item; today the colliding
+   rows carry the same effect, so first-match was already right, but this
+   prefers the row for this item's own tier and slot so it stays right if
+   a future collision differs. */
+function procFor(id, iid){
+  const rows = PROCS.filter(p => p.id === id);
+  if (rows.length <= 1) return rows[0] || null;
+  const m = /^(?:armor|weapon|accessory)_(t\d)_([a-z]+)/.exec(iid || "");
+  if (m){
+    const want = m[1] + " " + m[2];
+    const hit = rows.find(p => (p.pat || "").toLowerCase().startsWith(want));
+    if (hit) return hit;
+  }
+  return rows[0];
+}
+
 function renderItemDb(){
   const ic=document.getElementById("itemCount");
   if(ic) ic.textContent=Object.keys(ITEM_DB).length;
@@ -857,7 +873,7 @@ function renderItemDb(){
     const leg=(it.r||[]).includes(4);
     // Prefer the plain-English effect from the proc table; the raw ability id is
     // only a fallback for an effect nobody has written a description for yet.
-    const known=it.fx?PROCS.find(p=>p.id===it.fx.a):null;
+    const known=it.fx?procFor(it.fx.a,id):null;
     const wf=(typeof WIKI_FX!=="undefined")?WIKI_FX[id]:null;
     /* Three states, and they are genuinely different claims. Either we recorded it,
        so the trigger, scope and chance are all real. Or only the wiki documents it,
@@ -1364,7 +1380,7 @@ function libPool(){
     // uses for lines like the Neotilus boots' extra projectile
     for(const s in (it.bs||{})) rolls.push({s,p:0,v:+it.bs[s]});
     const top=(it.r||[]).length?Math.max.apply(null,it.r):null;
-    const known=it.fx?PROCS.find(p=>p.id===it.fx.a):null;
+    const known=it.fx?procFor(it.fx.a,id):null;
     out.push({
       slot, name, lvl:it.lvl, rolledSec:0, pk:it.pk||null,
       rarity: top!=null ? (RARITY_NAME[top]||"") : "",

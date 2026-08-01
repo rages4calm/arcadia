@@ -45,7 +45,7 @@
    "acceptedAnswer":{"@type":"Answer","text":"Yes, for percentage stats. They follow a saturating curve, so the first point of an attribute is worth several times the thirty-fourth. Flat stats such as maximum health and health regeneration stay linear and never saturate."}}]}
 ]}
 </script>
-<link rel="stylesheet" href="arcadia.css?v=47118ff4d8"/>
+<link rel="stylesheet" href="arcadia.css?v=d91d7bf070"/>
 </head>
 <body>
 <a href="#main" class="sr-only">Skip to planner</a>
@@ -97,11 +97,11 @@
 
   <main id="main" class="grid">
     <div>
-      <div class="card">
+      <div class="card" data-mo="1">
         <h2>Your abilities <span class="hint">pick up to 4</span></h2>
         <div class="lo" id="loadout"></div>
       </div>
-      <div class="card">
+      <div class="card" data-mo="2">
         <h2>Gear <span class="hint">screenshot a tooltip, or paste the lines</span></h2>
         <div class="shot" id="shotZone" tabindex="0"
              aria-label="Drop or paste an item tooltip screenshot">
@@ -117,7 +117,7 @@
         <div id="gear"></div>
         <div class="note info" id="itemRules"></div>
       </div>
-      <div class="card">
+      <div class="card" data-mo="8">
         <h2>Compare an item <span class="hint">should you swap it in?</span></h2>
         <div class="cmpbar">
           <select class="pick" id="cmpSlot" aria-label="Slot to compare against" onchange="setCmpSlot(this.value)"></select>
@@ -138,7 +138,7 @@
         <div id="cmpOut"></div>
       </div>
 
-      <div class="card" id="relicCard">
+      <div class="card" id="relicCard" data-mo="9">
         <h2>Relics <span class="hint">what a dungeon can offer this loadout</span></h2>
         <p class="relic-intro">Relics are picked <b>during a run</b>, one per dungeon level, and grant
           temporary buffs rather than permanent stats — so they are not part of the numbers above.
@@ -152,31 +152,31 @@
     </div>
 
     <div>
-      <div class="card">
+      <div class="card" data-mo="3">
         <h2>Attributes <span class="hint">1 base + your gear's primary rolls</span></h2>
         <div class="attrs" id="attrs"></div>
         <div class="note" id="hpNote"></div>
       </div>
-      <div class="card">
+      <div class="card" data-mo="4">
         <h2>What your gear does <span class="hint">effects and modifiers, not attribute totals</span></h2>
         <div id="tagged"></div>
       </div>
-      <div class="card">
+      <div class="card" data-mo="5">
         <h2>Stat priority for this build <span class="hint">the optimizer's ranking</span></h2>
         <div id="priority"></div>
         <div class="note good" id="priNote"></div>
       </div>
-      <div class="card">
+      <div class="card" data-mo="6">
         <h2>What to change <span class="hint">actionable</span></h2>
         <ol class="advice" id="advice"></ol>
       </div>      <!-- These two are reference material, not answers. Open by request, so a
            player who came to compare one chest piece isn't scrolled past 7,000px
            of catalogue to reach their number. -->
-      <details class="card ref">
+      <details class="card ref" data-mo="10">
         <summary><h2>Legendary hidden effects <span class="hint">not shown in-game &middot; <span id="procCount">42</span> effects</span></h2></summary>
         <div id="procs"></div>
       </details>
-      <details class="card ref">
+      <details class="card ref" data-mo="11">
         <summary><h2>Item database <span class="hint">what each base item rolls &middot; <span id="itemCount">171</span> items</span></h2></summary>
         <label class="sr-only" for="itemq">Filter items</label>
         <input id="itemq" type="search" placeholder="filter — try &quot;t5 head&quot;, &quot;lunar&quot;, &quot;staff&quot;"
@@ -185,7 +185,7 @@
         <div class="note" id="itemdbNote"></div>
         <p class="note"><a href="/items">Browse every item on its own page</a> &mdash; each one has a permalink you can paste in chat.</p>
       </details>
-      <div class="card">
+      <div class="card" data-mo="7">
         <h2>Ability match <span class="hint">raw attribute fit only &mdash; ignores procs and modifiers</span></h2>
         <div id="abilrank"></div>
         <div class="note" id="abilNote"></div>
@@ -196,7 +196,7 @@
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="data.js?v=01527f9aaf"></script>
-<script src="app.js?v=92f6f14652"></script>
+<script src="data.js?v=3a790a31a4"></script>
+<script src="app.js?v=2a5a3d4fa8"></script>
 </body>
 </html>

@@ -85,6 +85,26 @@
     text-transform:none;letter-spacing:0;font-weight:400}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;align-items:start}
   @media (max-width:920px){ .grid{grid-template-columns:1fr} }
+  /* Phone: dissolve the two layout columns so the cards become one
+     flow, then order them inputs -> answers -> tools -> reference,
+     instead of the whole left column landing before any answer. */
+  @media (max-width:920px){
+    .grid{display:flex;flex-direction:column}
+    .grid>div{display:contents}
+    .grid [data-mo]{order:50}
+    .grid [data-mo="1"]{order:1}
+    .grid [data-mo="2"]{order:2}
+    .grid [data-mo="3"]{order:3}
+    .grid [data-mo="4"]{order:4}
+    .grid [data-mo="5"]{order:5}
+    .grid [data-mo="6"]{order:6}
+    .grid [data-mo="7"]{order:7}
+    .grid [data-mo="8"]{order:8}
+    .grid [data-mo="9"]{order:9}
+    .grid [data-mo="10"]{order:10}
+    .grid [data-mo="11"]{order:11}
+  }
+
 
   /* --- controls ------------------------------------------------------- */
   .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
