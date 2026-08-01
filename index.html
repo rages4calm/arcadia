@@ -637,6 +637,7 @@
                oninput="renderItemDb()" style="width:100%;margin-bottom:8px">
         <div id="itemdb"></div>
         <div class="note" id="itemdbNote"></div>
+        <p class="note"><a href="/items">Browse every item on its own page</a> &mdash; each one has a permalink you can paste in chat.</p>
       </details>
       <div class="card">
         <h2>Ability match <span class="hint">raw attribute fit only &mdash; ignores procs and modifiers</span></h2>
@@ -1833,6 +1834,13 @@ function dropPct(c){
   return pct>=0.1 ? pct.toFixed(2)+"%"
        : `${pct.toFixed(3)}% (about 1 in ${Math.round(1/c).toLocaleString()})`;
 }
+/* Must match tools/export_items.py: the page for an item is keyed by its
+   display name, so both sides have to derive the same slug from it. */
+function itemSlug(name){
+  return String(name||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/['\u2019]/g,"")
+    .replace(/[^A-Za-z0-9]+/g,"-").replace(/^-+|-+$/g,"").toLowerCase();
+}
 function renderItemDb(){
   const ic=document.getElementById("itemCount");
   if(ic) ic.textContent=Object.keys(ITEM_DB).length;
@@ -1861,7 +1869,8 @@ function renderItemDb(){
         ? `<div class="fx" style="margin:2px 0 0 8px;color:var(--good)">Legendary: <b>${esc(wf.n)}</b> — ${esc(wf.d)} <span style="color:var(--faint)">(community wiki; proc chance unrecorded)</span></div>`
         : (leg?`<div class="fx" style="margin:2px 0 0 8px;color:var(--faint)">No legendary effect recorded for this one yet</div>`:``);
     return `<div class="arow">
-        <span class="nm">${esc(nm||prettyItem(id))}${nm?` <span class="hint">${esc(prettyItem(id))}</span>`:``}</span>
+        <span class="nm"><a href="/item/${esc(itemSlug(nm||prettyItem(id)))}"
+          title="Open the page for this item">${esc(nm||prettyItem(id))}</a>${nm?` <span class="hint">${esc(prettyItem(id))}</span>`:``}</span>
         <span class="ty">${it.lvl?"iLvl "+it.lvl:""}</span>
         <span class="by">${(it.r||[]).length?"rarity "+it.r.join("/"):""}</span>
       </div>

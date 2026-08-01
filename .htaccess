@@ -14,6 +14,12 @@ RewriteRule ^ https://arcadia.carl-prewitt.com%{REQUEST_URI} [R=301,L]
 
 RewriteRule ^b/([A-Za-z0-9]{4,12})/?$ /index.html [L]
 
+# Item pages. One PHP template renders every item from items.json, which is
+# generated from the same datasets the planner uses -- so an item search can
+# reach a real page instead of a JavaScript app on a single URL.
+RewriteRule ^items/?$ /item.php [L]
+RewriteRule ^item/([a-z0-9-]{1,80})/?$ /item.php?slug=$1 [L,QSA]
+
 # No directory listings anywhere, /api included.
 Options -Indexes
 
@@ -76,4 +82,8 @@ RedirectMatch 404 /\.git(/|$)
   ExpiresActive On
   # index.html changes whenever the tool is updated, so don't cache it hard.
   ExpiresByType text/html "access plus 0 seconds"
+  # The fonts are content-stable: same two faces every deploy. They used to be
+  # base64 inside the page, which meant re-downloading them on every visit.
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 month"
 </IfModule>
