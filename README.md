@@ -31,12 +31,18 @@ already have.
   and the link unfurls with the build's abilities and gear, not a generic card.
 - **Gear library** — documented items you can load into any slot with one click.
 
-## Item pages
+## Item and relic pages
 
 Every item also has its own page — [`/item/<name>`](https://arcadia.carl-prewitt.com/items) — with
 its stats, what it can roll, where it drops, and the hidden legendary effect. These are plain pages
 a search engine can index and you can link in chat, and they say the one thing a tier-less wiki
 list cannot: when a Tier 5 and a Tier 6 item share a name, how their effects differ.
+
+[`/relics`](https://arcadia.carl-prewitt.com/relics) does the same for the 165 measured relics,
+grouped by the ability that unlocks them, because that is how the game hands them out. Each pool
+page shows every upgrade step in order, keeps the one-off relics separate from the ones with an
+upgrade path, and flags the damage-conversion relics — converting your damage type is the quickest
+way to make the gear you are wearing stop scaling you.
 
 ## Things it can tell you that aren't documented elsewhere
 
@@ -128,8 +134,9 @@ api/config.php        ← the one you just filled in, not the example
 `.htaccess` is what makes `/b/x7k2p` work, so don't skip it. If your FTP client hides dotfiles,
 enable "show hidden files".
 
-For the optional item pages, also upload `item.php`, `items.json` and `sitemap-items.xml`; for the
-build gallery, `gallery.html` and `api/gallery.php` (see below). `b.php` renders the rich link
+For the optional catalogue pages, also upload `item.php`, `items.json`, `sitemap-items.xml`,
+`relic.php`, `relics.json` and `sitemap-relics.xml`; for the build gallery, `gallery.html` and
+`api/gallery.php` (see below). `b.php` renders the rich link
 preview for a shared build — upload it too, but the app works without it.
 
 ### 5. Check it
