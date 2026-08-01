@@ -26,11 +26,32 @@ const SITE = 'https://arcadia.carl-prewitt.com';
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
+/**
+ * Point relative asset URLs at the site root.
+ *
+ * index.html loads arcadia.css, data.js and app.js by relative path, which is
+ * deliberate -- it keeps a saved copy of the folder working from file://. But
+ * this page is also served at /b/<id>, where a browser resolves "data.js"
+ * against /b/ and gets a 404, so the app never loads and the build renders as
+ * unstyled markup. Rewriting here fixes the served copy without giving up the
+ * offline one. Matched by shape so an asset added later is covered too.
+ */
+function rootAssets(string $html): string {
+    $out = preg_replace(
+        '#(<(?:script|link)\b[^>]*?\b(?:src|href)=")(?!/|https?://|data:|\#)#i',
+        '$1/',
+        $html
+    );
+    return $out ?? $html;
+}
+
 /** Serve the app exactly as it is, and stop. The fallback for every failure. */
 function plain(): never {
     header('Content-Type: text/html; charset=utf-8');
     header('Cache-Control: public, max-age=0, must-revalidate');
-    readfile(APP);
+    $html = @file_get_contents(APP);
+    // Even the fallback is served at /b/<id>, so it needs the same fix.
+    echo $html === false ? '' : rootAssets($html);
     exit;
 }
 
@@ -178,4 +199,4 @@ if ($applied < 4) {
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: public, max-age=300');
-echo $out;
+echo rootAssets($out);
