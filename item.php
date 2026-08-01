@@ -254,6 +254,27 @@ nav.sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
   color:var(--faint);border:1px solid var(--edge);padding:2px 6px;
   text-decoration:none;opacity:.75}
 .rec:hover,.rec:focus-visible{color:var(--amber);border-color:var(--amber-dim);opacity:1}
+
+/* Filter bar. Sits above the list rather than in it, so the list itself stays
+   exactly what a crawler sees. */
+.filt{margin:0 0 20px;padding:13px 14px;background:var(--panel);
+  border:1px solid var(--edge)}
+.filt input{width:100%;background:var(--void);border:1px solid var(--edge);
+  color:var(--ink);font-family:var(--sans);font-size:14px;padding:8px 10px;
+  margin-bottom:9px}
+.filt input:focus{border-color:var(--amber-dim);outline:none}
+.filt input:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px}
+.chip{background:transparent;border:1px solid var(--edge);color:var(--faint);
+  font-family:var(--pixel);font-size:9.5px;letter-spacing:.5px;padding:5px 9px;
+  cursor:pointer;min-height:26px}
+.chip:hover{color:var(--amber-ink);border-color:var(--amber-dim)}
+.chip.on{background:var(--amber);border-color:var(--amber);color:#1a1208}
+.fcount{font-size:12px;color:var(--faint);margin-top:2px}
+.b.wk{color:var(--faint)}
+.linkish{background:none;border:none;color:var(--amber-ink);cursor:pointer;
+  font:inherit;text-decoration:underline;padding:0}
+@media (max-width:560px){ .chip{font-size:9px;padding:6px 8px} }
 </style>
 </head>
 <body>
@@ -475,19 +496,61 @@ foreach ($ITEMS as $i) { $idCount += count($i['variants'] ?? []); }
   and the legendary effects the game does not print</div>
 <p class="meta">Values are community-measured and can change with any game update.
   A green dot marks an item with a recorded legendary effect.
-  <a href="/gaps">55 items are still blank</a> &mdash; if you own one at Legendary
-  rarity you can close it.</p>
+  A hollow dot means the community wiki names the effect but nobody has measured it.
+  <a href="/gaps"><?= (int) ($GAPS['counts']['unknownEffect'] ?? 0) ?> effects are still
+  unrecorded</a> &mdash; if you own one at Legendary rarity you can close it, or use
+  <b>Blank</b> below to see the items with nothing recorded at all.</p>
+<!-- Filtering runs in the browser over a list the server has already rendered in
+     full. That way a crawler and a reader with no JavaScript still get all 153
+     items, and the filter is an enhancement rather than a requirement. -->
+<div class="filt">
+  <label class="sr-only" for="q">Search items by name</label>
+  <input id="q" type="search" placeholder="Search 153 items — try &quot;girdle&quot;, &quot;lunar&quot;, &quot;kimono&quot;"
+         autocomplete="off" spellcheck="false">
+  <div class="chips" role="group" aria-label="Filter by what is known">
+    <button type="button" class="chip on" data-f="all">All</button>
+    <button type="button" class="chip" data-f="fx">Has effect</button>
+    <button type="button" class="chip" data-f="gap">Blank</button>
+    <button type="button" class="chip" data-f="wiki">Wiki-only</button>
+  </div>
+  <div class="chips" role="group" aria-label="Filter by tier">
+    <?php foreach ([1,2,3,4,5,6] as $t): ?>
+      <button type="button" class="chip tierchip" data-t="<?= $t ?>">T<?= $t ?></button>
+    <?php endforeach; ?>
+  </div>
+  <div class="fcount" id="fcount" role="status" aria-live="polite"></div>
+</div>
+
 <?php foreach ($groups as $slot => $list): ?>
   <div class="grp">
-    <h3><?= e((string) $slot) ?> &middot; <?= count($list) ?></h3>
+    <h3><?= e((string) $slot) ?> &middot; <span class="gn"><?= count($list) ?></span></h3>
     <div class="idx">
-    <?php foreach ($list as $i): ?>
-      <a href="/item/<?= e($i['slug']) ?>"><?= e($i['name']) ?><?php
-        if (!empty($i['hasEffect'])) echo ' <span class="b">&#9679;</span>'; ?></a>
+    <?php foreach ($list as $i):
+      // Everything the filter needs, decided here where the data actually is.
+      $tiers = [];
+      $wikiOnly = false; $measured = false; $legendary = false;
+      foreach ($i['variants'] as $v) {
+          if (!empty($v['tier'])) $tiers[] = (int) $v['tier'];
+          if (in_array(4, (array) ($v['rarities'] ?? []), true)) $legendary = true;
+          if (!empty($v['effect'])) {
+              if (($v['effect']['source'] ?? '') === 'wiki') $wikiOnly = true;
+              else $measured = true;
+          }
+      }
+      $kind = $measured ? 'fx' : ($wikiOnly ? 'wiki' : ($legendary ? 'gap' : 'none'));
+      ?>
+      <a href="/item/<?= e($i['slug']) ?>"
+         data-n="<?= e(strtolower($i['name'])) ?>"
+         data-k="<?= $kind ?>"
+         data-t="<?= e(implode(' ', array_unique($tiers))) ?>"><?= e($i['name']) ?><?php
+        if ($kind === 'fx')        echo ' <span class="b">&#9679;</span>';
+        elseif ($kind === 'wiki')  echo ' <span class="b wk" title="Named on the community wiki; the trigger rate is not measured">&#9675;</span>';
+      ?></a>
     <?php endforeach; ?>
     </div>
   </div>
 <?php endforeach; ?>
+<p class="meta" id="noneMsg" hidden>Nothing matches that. <button type="button" class="linkish" id="clearF">Clear the filters</button></p>
 
 <?php else: ?>
 <nav class="crumb"><a href="/">Planner</a> &rsaquo; <a href="/items">Items</a></nav>
@@ -496,6 +559,104 @@ foreach ($ITEMS as $i) { $idCount += count($i['variants'] ?? []); }
 <a class="cta" href="/items">Browse every item</a>
 <?php endif; ?>
 
+
+<script>
+/* Filters the rendered list in place. The server sends every item; this only
+   hides. Selection is mirrored into the URL so a filtered view can be linked --
+   /items?f=gap is how the gaps page points back here. */
+(function(){
+  var q      = document.getElementById('q');
+  var rows   = [].slice.call(document.querySelectorAll('.idx a'));
+  var groups = [].slice.call(document.querySelectorAll('.grp'));
+  var count  = document.getElementById('fcount');
+  var none   = document.getElementById('noneMsg');
+  if (!q || !rows.length) return;
+
+  var kind = 'all', tiers = {};
+
+  function apply(push){
+    var term = q.value.trim().toLowerCase();
+    var wantT = Object.keys(tiers).filter(function(t){ return tiers[t]; });
+    var shown = 0;
+
+    rows.forEach(function(a){
+      var okName = !term || a.getAttribute('data-n').indexOf(term) !== -1;
+      var okKind = kind === 'all' || a.getAttribute('data-k') === kind;
+      var okTier = !wantT.length || wantT.some(function(t){
+        return (' ' + a.getAttribute('data-t') + ' ').indexOf(' ' + t + ' ') !== -1;
+      });
+      var show = okName && okKind && okTier;
+      a.hidden = !show;
+      if (show) shown++;
+    });
+
+    // A slot heading with nothing under it is noise, and its count would lie.
+    groups.forEach(function(g){
+      var vis = g.querySelectorAll('.idx a:not([hidden])').length;
+      g.hidden = vis === 0;
+      var n = g.querySelector('.gn');
+      if (n) n.textContent = vis;
+    });
+
+    var filtered = term || kind !== 'all' || wantT.length;
+    count.textContent = filtered ? shown + ' of ' + rows.length + ' items' : '';
+    none.hidden = shown !== 0;
+
+    if (push && window.history && history.replaceState) {
+      var p = new URLSearchParams();
+      if (term) p.set('q', term);
+      if (kind !== 'all') p.set('f', kind);
+      if (wantT.length) p.set('t', wantT.join(','));
+      var qs = p.toString();
+      history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+    }
+  }
+
+  q.addEventListener('input', function(){ apply(true); });
+
+  document.querySelectorAll('.chip[data-f]').forEach(function(c){
+    c.addEventListener('click', function(){
+      kind = c.getAttribute('data-f');
+      document.querySelectorAll('.chip[data-f]').forEach(function(o){
+        o.classList.toggle('on', o === c);
+      });
+      apply(true);
+    });
+  });
+
+  document.querySelectorAll('.chip[data-t]').forEach(function(c){
+    c.addEventListener('click', function(){
+      var t = c.getAttribute('data-t');
+      tiers[t] = !tiers[t];
+      c.classList.toggle('on', tiers[t]);
+      apply(true);
+    });
+  });
+
+  document.getElementById('clearF').addEventListener('click', function(){
+    q.value = ''; kind = 'all'; tiers = {};
+    document.querySelectorAll('.chip').forEach(function(o){
+      o.classList.toggle('on', o.getAttribute('data-f') === 'all');
+    });
+    apply(true);
+  });
+
+  // Arrive pre-filtered when linked to.
+  var init = new URLSearchParams(location.search);
+  if (init.get('q')) q.value = init.get('q');
+  var f = init.get('f');
+  if (f) {
+    var btn = document.querySelector('.chip[data-f="' + f.replace(/[^a-z]/g,'') + '"]');
+    if (btn) { kind = f; document.querySelectorAll('.chip[data-f]').forEach(function(o){
+      o.classList.toggle('on', o === btn); }); }
+  }
+  (init.get('t') || '').split(',').filter(Boolean).forEach(function(t){
+    var btn = document.querySelector('.chip[data-t="' + t.replace(/[^0-9]/g,'') + '"]');
+    if (btn) { tiers[t] = true; btn.classList.add('on'); }
+  });
+  apply(false);
+})();
+</script>
 <footer>
   <b>This project is an independent creation and is not affiliated with, endorsed, or
   sponsored by Soulbound.</b> View the official Fan Content Policy at
