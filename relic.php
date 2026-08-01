@@ -200,7 +200,7 @@ nav.sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
   <a href="/items">Items</a>
   <a href="/relics" aria-current="page">Relics</a>
   <a href="/gaps">Gaps</a>
-  <a href="/gallery.html">Gallery</a>
+  <a href="/gallery">Gallery</a>
 </nav>
 
 <?php if ($pool): ?>
@@ -258,7 +258,9 @@ come.</p>
 <p class="meta">The planner reads your loadout and ranks which of these pools your gear
 actually supports &mdash; a relic that converts your damage type is worth very little if
 none of your gear scales it.</p>
-<a class="cta" href="/">Open the build planner</a>
+<!-- Carries the ability through, so the planner opens with it already slotted
+     rather than making you find it again in a dropdown. -->
+<a class="cta" href="/?ability=<?= e($pool['id']) ?>">Open the planner with <?= e($pool['ability']) ?></a>
 
 <script type="application/ld+json"><?= json_encode([
   '@context' => 'https://schema.org',

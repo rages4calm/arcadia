@@ -23,6 +23,10 @@ RewriteRule ^items/?$ /item.php [L]
 RewriteRule ^gaps/?$ /item.php?gaps=1 [L]
 RewriteRule ^item/([a-z0-9-]{1,80})/?$ /item.php?slug=$1 [L,QSA]
 
+# The gallery predates the other sections and was reached at gallery.html.
+# /gallery matches the rest; the old path still works so shared links live.
+RewriteRule ^gallery/?$ /gallery.html [L]
+
 # Relic pools, same shape: an index plus one page per ability.
 RewriteRule ^relics/?$ /relic.php [L]
 RewriteRule ^relic/([a-z0-9-]{1,80})/?$ /relic.php?slug=$1 [L,QSA]

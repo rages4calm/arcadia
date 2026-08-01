@@ -70,6 +70,34 @@ let S = fromHash() || loadState();   // legacy links + stored build, synchronous
   if(d){ S=normalise(d); persist(); render(); }
 })();
 
+/* A relic page can hand an ability over: /?ability=pyrosphere slots it into the
+   first free slot so the pool you were just reading is actually in the loadout.
+   It never displaces a slot you have already filled, and it does not persist --
+   arriving from a link should not quietly rewrite the build you had saved.
+
+   This only mutates state. Calling render() here would abort the rest of this
+   file: the renderers close over consts declared further down, which are still
+   in their temporal dead zone while this line runs, so the throw stops
+   evaluation before any event handler is bound. The render at the end of the
+   file is what draws this. */
+(function adoptAbilityFromQuery(){
+  try{
+    // Wrapped because this file is also evaluated outside a browser -- the
+    // export and verification tools run it in a bare VM, where URLSearchParams
+    // does not exist. A throw here would stop the rest of the file from
+    // evaluating, which is a large failure for a small convenience.
+    if(typeof URLSearchParams!=="function" || typeof location==="undefined") return;
+    const want=new URLSearchParams(location.search||"").get("ability");
+    if(!want || !ABILITIES.some(a=>a.id===want)) return;
+    if(S.loadout.includes(want)) return;
+    const free=S.loadout.indexOf("");
+    if(free<0) return;
+    S.loadout[free]=want;
+    const nm=(ABILITIES.find(a=>a.id===want)||{}).name||want;
+    addEventListener("load",()=>{ try{ toast(`Added ${nm}`); }catch(e){} });
+  }catch(e){ /* never let a query-string nicety break the app */ }
+})();
+
 function loadState(){
   try{ const d=JSON.parse(localStorage.getItem(LS)); if(d&&d.gear) return normalise(d); }catch(e){}
   return {loadout:["","","",""], gear:blankGear()};
@@ -611,9 +639,9 @@ function relicAdvice(){
       if(e.meta.dot && themes.some(t=>t.k==="dot"))
         hits.push({name:"damage over time", why:"applies damage over time, which your DoT Potency scales"});
 
-      if(warns.length) bad.push({ab:abName, label:e.label,
+      if(warns.length) bad.push({ab:abName, abId:id, label:e.label,
         why:warns[0].antiWhy||warns[0].why||`fights your ${warns[0].name}`});
-      else if(hits.length>=2) good.push({ab:abName, label:e.label, n:hits.length,
+      else if(hits.length>=2) good.push({ab:abName, abId:id, label:e.label, n:hits.length,
                                          why:hits.slice(0,2).map(h=>h.why||h.name).join("; ")});
     }
   }
@@ -633,11 +661,11 @@ function renderRelicAdvice(){
     <h3>Worth grabbing</h3>
     <p class="lead">Read off your gear, this build leans on: ${chips}</p>
     ${good.length?`<ul>${good.map(g=>
-      `<li><span class="ab">${esc(g.ab)}</span> — ${esc(g.label)}<br>
+      `<li><a class="ab" href="/relic/${esc(itemSlug(g.ab))}">${esc(g.ab)}</a> — ${esc(g.label)}<br>
         <span class="why">${esc(g.why)}</span></li>`).join("")}</ul>`
       : `<p class="lead">Nothing in your pools lines up strongly with this gear yet.</p>`}
     ${bad.length?`<div class="bad"><h3>Reads like an upgrade, is not</h3><ul>${bad.map(b=>
-      `<li><span class="ab">${esc(b.ab)}</span> — ${esc(b.label)}<br>
+      `<li><a class="ab" href="/relic/${esc(itemSlug(b.ab))}">${esc(b.ab)}</a> — ${esc(b.label)}<br>
         <span class="why">${esc(b.why)}</span></li>`).join("")}</ul></div>`:``}
   </div>`;
 }

@@ -50,6 +50,37 @@ function num(float $n): string {
     return rtrim(rtrim(number_format($n, 2, '.', ''), '0'), '.');
 }
 
+const REPO = 'https://github.com/rages4calm/arcadia';
+
+/**
+ * A GitHub issue, prefilled for one specific blank.
+ *
+ * "Open an issue" on its own asks somebody to work out what we need and type it
+ * from scratch, which is why blanks stay blank. This arrives with the item, its
+ * id and tier already filled in, so the only thing left to supply is the answer
+ * -- including the answer "the tooltip prints nothing", which is a real result
+ * and the one people otherwise stay quiet about.
+ */
+function gapIssueUrl(array $u): string {
+    $name = $u['name'] ?? $u['id'];
+    $body = "**Item:** {$name}\n"
+          . "**Internal id:** `{$u['id']}`\n"
+          . (!empty($u['tier']) ? "**Tier:** {$u['tier']}\n" : '')
+          . (!empty($u['slot']) ? "**Slot:** {$u['slot']}\n" : '')
+          . (!empty($u['slug']) ? "**Page:** " . SITE . "/item/{$u['slug']}\n" : '')
+          . "\n---\n\n"
+          . "What does the **Legendary** version of this do?\n\n"
+          . "- [ ] The tooltip shows an effect — pasted below, or screenshot attached\n"
+          . "- [ ] The tooltip shows **nothing at all** — this is still a useful answer, "
+          . "some effects genuinely are not printed\n\n"
+          . "**Effect text (or screenshot):**\n\n\n"
+          . "**Item level** (confirms which tier this is):\n\n\n"
+          . "_Thanks — this closes one blank on the gaps list._\n";
+    return REPO . '/issues/new?title=' . rawurlencode("Legendary effect: {$name}")
+         . '&labels=' . rawurlencode('gear data')
+         . '&body=' . rawurlencode($body);
+}
+
 /** armor_t5_head_lunar_001 -> "T5 Head Lunar Conduit", for items with no known name. */
 function prettyFromId(string $iid): string {
     static $slot = ['head' => 'Head', 'chest' => 'Chest', 'feet' => 'Legs', 'belt' => 'Belt',
@@ -216,6 +247,12 @@ nav.sitenav a:hover{color:var(--amber-ink);background:var(--panel)}
 nav.sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
   border-color:var(--edge);border-bottom:1px solid var(--panel)}
 @media (max-width:560px){ nav.sitenav a{padding:8px 10px;font-size:10px} }
+.gaprow{display:flex;align-items:baseline;gap:8px;break-inside:avoid}
+.gaprow>a:first-child{flex:1 1 auto;min-width:0}
+.rec{flex:0 0 auto;font-family:var(--pixel);font-size:9px;letter-spacing:.5px;
+  color:var(--faint);border:1px solid var(--edge);padding:2px 6px;
+  text-decoration:none;opacity:.75}
+.rec:hover,.rec:focus-visible{color:var(--amber);border-color:var(--amber-dim);opacity:1}
 </style>
 </head>
 <body>
@@ -230,7 +267,7 @@ nav.sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
   <a href="/items"<?= $isGaps ? '' : ' aria-current="page"' ?>>Items</a>
   <a href="/relics">Relics</a>
   <a href="/gaps"<?= $isGaps ? ' aria-current="page"' : '' ?>>Gaps</a>
-  <a href="/gallery.html">Gallery</a>
+  <a href="/gallery">Gallery</a>
 </nav>
 
 <?php if ($item): ?>
@@ -297,7 +334,14 @@ nav.sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
       <?php endif; ?>
     <?php else: ?>
       <div class="tthead dim">Not on the in-game tooltip</div>
-      <div class="ttnote">Nothing hidden has been recorded for this one.</div>
+      <div class="ttnote">Nothing hidden has been recorded for this one.<?php
+        // Only worth asking where a Legendary is known to exist; on an item that
+        // never drops one there is nothing to record and the ask is just noise.
+        if (in_array(4, (array) ($v['rarities'] ?? []), true)):
+          $u = ['id' => $v['id'], 'name' => $item['name'], 'slug' => $item['slug'],
+                'slot' => $item['slot'], 'tier' => $v['tier'] ?? null]; ?>
+        <br><a href="<?= e(gapIssueUrl($u)) ?>" rel="noopener">Own this at Legendary? Help record it</a>
+        &mdash; a blank tooltip is a useful answer too.<?php endif; ?></div>
     <?php endif; ?>
   </div>
 <?php endforeach; ?>
@@ -370,8 +414,15 @@ tooltip, and the developers have confirmed some are cut off entirely &mdash; so
     <h3><?= e((string) $slot) ?> &middot; <?= count($list) ?></h3>
     <div class="idx">
     <?php foreach ($list as $u): ?>
-      <a href="/item/<?= e((string) $u['slug']) ?>"><?= e($u['name']) ?><?php
-        if (!empty($u['tier'])) echo ' <span class="b" style="color:var(--faint)">T' . (int) $u['tier'] . '</span>'; ?></a>
+      <span class="gaprow">
+        <a href="/item/<?= e((string) $u['slug']) ?>"><?= e($u['name']) ?><?php
+          // An unnamed item's derived label already begins with its tier, so a
+          // badge here would print it twice ("T3 Head Virelda Warcrest T3").
+          if (!empty($u['tier']) && !empty($u['named']))
+              echo ' <span class="b" style="color:var(--faint)">T' . (int) $u['tier'] . '</span>'; ?></a>
+        <a class="rec" href="<?= e(gapIssueUrl($u)) ?>" rel="noopener"
+           title="Open a prefilled issue for this item">record</a>
+      </span>
     <?php endforeach; ?>
     </div>
   </div>
