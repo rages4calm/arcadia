@@ -227,8 +227,9 @@ nav.sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
 
 <nav class="sitenav" aria-label="Sections">
   <a href="/">Planner</a>
-  <a href="/items" aria-current="page">Items</a>
+  <a href="/items"<?= $isGaps ? '' : ' aria-current="page"' ?>>Items</a>
   <a href="/relics">Relics</a>
+  <a href="/gaps"<?= $isGaps ? ' aria-current="page"' : '' ?>>Gaps</a>
   <a href="/gallery.html">Gallery</a>
 </nav>
 

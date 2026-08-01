@@ -199,6 +199,7 @@ nav.sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
   <a href="/">Planner</a>
   <a href="/items">Items</a>
   <a href="/relics" aria-current="page">Relics</a>
+  <a href="/gaps">Gaps</a>
   <a href="/gallery.html">Gallery</a>
 </nav>
 
