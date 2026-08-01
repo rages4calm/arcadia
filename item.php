@@ -410,7 +410,16 @@ rate measured; those show on their own page, marked as wiki-sourced.</p>
   ksort($groups); ?>
 <nav class="crumb"><a href="/">Planner</a> &rsaquo; Items</nav>
 <h1>Item database</h1>
-<div class="sub"><?= count($ITEMS) ?> items &middot; stats, possible rolls, drop sources,
+<?php
+// One page per name, but 18 names cover a Tier 5 and a Tier 6 item, so the page
+// count and the item count are different numbers. Both are true and both appear
+// on the site, so say so here rather than let a reader find 153 on one page and
+// 171 on another and conclude one of them is broken.
+$idCount = 0;
+foreach ($ITEMS as $i) { $idCount += count($i['variants'] ?? []); }
+?>
+<div class="sub"><?= count($ITEMS) ?> items<?= $idCount > count($ITEMS)
+    ? ' (' . $idCount . ' counting tier variants)' : '' ?> &middot; stats, possible rolls, drop sources,
   and the legendary effects the game does not print</div>
 <p class="meta">Values are community-measured and can change with any game update.
   A green dot marks an item with a recorded legendary effect.
