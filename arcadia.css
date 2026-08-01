@@ -438,6 +438,21 @@
   .gallerylink{margin-left:auto;text-decoration:none;display:inline-block}
   @media (max-width:520px){ .gallerylink{margin-left:0} }
 
+  /* Section nav. Sits under the masthead as a row of tabs, so the catalogues
+     are reachable from anywhere instead of only from a collapsed panel at the
+     foot of the page. The current section is marked rather than linked-looking,
+     which is what aria-current is describing to a screen reader. */
+  .sitenav{display:flex;gap:2px;flex-wrap:wrap;margin:0 0 14px;
+    border-bottom:1px solid var(--edge)}
+  .sitenav a{font-family:var(--pixel);font-size:10.5px;letter-spacing:.5px;
+    color:var(--faint);text-decoration:none;padding:8px 13px;
+    border:1px solid transparent;border-bottom:none;margin-bottom:-1px;
+    transition:color var(--dur) var(--ease),background var(--dur) var(--ease)}
+  .sitenav a:hover{color:var(--amber-ink);background:var(--panel)}
+  .sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
+    border-color:var(--edge);border-bottom:1px solid var(--panel)}
+  @media (max-width:520px){ .sitenav a{padding:8px 10px;font-size:10px} }
+
   /* reference panels open on request ---------------------------------- */
   .card.ref{padding:0}
   .card.ref>summary{list-style:none;cursor:pointer;padding:13px 14px}

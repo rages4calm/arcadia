@@ -9,3 +9,4 @@ Disallow: /api/
 
 Sitemap: https://arcadia.carl-prewitt.com/sitemap.xml
 Sitemap: https://arcadia.carl-prewitt.com/sitemap-items.xml
+Sitemap: https://arcadia.carl-prewitt.com/sitemap-relics.xml

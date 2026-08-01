@@ -178,6 +178,18 @@ footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--edge);
   font-size:12px;color:var(--faint);line-height:1.65}
 footer a{color:var(--dim)}
 @media (max-width:560px){ .idx{columns:1} h1{font-size:21px} .wrap{padding:16px 13px 48px} }
+
+/* Section nav, matching the planner: the catalogues interlink rather than each
+   being a dead end that only leads back to the planner. */
+nav.sitenav{display:flex;gap:2px;flex-wrap:wrap;margin:0 0 18px;
+  border-bottom:1px solid var(--edge)}
+nav.sitenav a{font-family:var(--pixel);font-size:10.5px;letter-spacing:.5px;
+  color:var(--faint);text-decoration:none;padding:8px 13px;
+  border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+nav.sitenav a:hover{color:var(--amber-ink);background:var(--panel)}
+nav.sitenav a[aria-current="page"]{color:var(--amber);background:var(--panel);
+  border-color:var(--edge);border-bottom:1px solid var(--panel)}
+@media (max-width:560px){ nav.sitenav a{padding:8px 10px;font-size:10px} }
 </style>
 </head>
 <body>
@@ -186,6 +198,13 @@ footer a{color:var(--dim)}
   <a class="logo" href="/">Arcadia</a>
   <span class="tag">build planner for Soulbound: Online</span>
 </header>
+
+<nav class="sitenav" aria-label="Sections">
+  <a href="/">Planner</a>
+  <a href="/items" aria-current="page">Items</a>
+  <a href="/relics">Relics</a>
+  <a href="/gallery.html">Gallery</a>
+</nav>
 
 <?php if ($item): ?>
 <nav class="crumb"><a href="/">Planner</a> &rsaquo; <a href="/items">Items</a> &rsaquo; <?= e($item['name']) ?></nav>

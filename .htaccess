@@ -22,6 +22,10 @@ RewriteRule ^b/([A-Za-z0-9]{4,12})/?$ /b.php?id=$1 [L,QSA]
 RewriteRule ^items/?$ /item.php [L]
 RewriteRule ^item/([a-z0-9-]{1,80})/?$ /item.php?slug=$1 [L,QSA]
 
+# Relic pools, same shape: an index plus one page per ability.
+RewriteRule ^relics/?$ /relic.php [L]
+RewriteRule ^relic/([a-z0-9-]{1,80})/?$ /relic.php?slug=$1 [L,QSA]
+
 # No directory listings anywhere, /api included.
 Options -Indexes
 
