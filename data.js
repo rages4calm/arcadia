@@ -183,7 +183,7 @@ const PROCS=[
  {pat:"t5 chest Lunar", trigger:"on chain lightning hit", effect:"+8% Lightning damage for 5s, stacking up to 10", scope:"lightning", chance:100, buffs:true, id:"legendary_lightning_hit_power_buff_ability", name:"Lunar Conduit Robe"},
  {pat:"t5 chest Neotilus", trigger:"on crit", effect:"Drone buff", scope:"explosive", chance:10, buffs:true, id:"legendary_explosive_crit_drone_buff_ability", name:"Neotilus Trailseeker Coat"},
   /* The wiki calls this Vital Spark, "hits have a small chance to restore health",
-    which is exactly the captured 1% heal. Provoker's Edge belongs to the TIER 6
+    which matches the 1% heal recorded here. Provoker's Edge belongs to the TIER 6
     copy of this item. */
  {pat:"t5 feet Foundation", trigger:"on enemy hit", effect:"Heal 1 HP", scope:"", chance:1, id:"legendary_on_hit_1hp_heal", name:"Foundation Bulwark Greaves"},
   /* Shares the Tritanium Hammer's id because it genuinely shares its effect - the
@@ -203,11 +203,11 @@ const PROCS=[
  {pat:"t4 staff Lunar", trigger:"on crit", effect:"Power buff to void abilities", scope:"void", chance:100, buffs:true, id:"legendary_void_crit_power_buff_ability", name:"Dark Yoku Staff"},
  {pat:"t5 greatsword Neotilus", trigger:"on enemy hit", effect:"Chill DEBUFF on the enemy", scope:"melee", chance:100, id:"legendary_melee_chill_debuff", name:"Viridium Greatsword"},
  {pat:"t5 staff Lunar", trigger:"on impact end", effect:"Shockwave after 5 hits", scope:"pyrosphere", chance:100, id:"legendary_pyrosphere_5hit_shockwave", name:"Viridium Yoku Staff"},
- /* Read from live item data 2026-07-30. Every effect the tool already
-    held was confirmed by the same capture with no disagreements, so these
-    are additions rather than corrections. Two of them settle the tier
-    question corrected by hand earlier: the melee-crit threat proc sits on
-    the TIER 6 greaves and the fortify proc on the TIER 6 chestguard. */
+ /* Recorded 2026-07-30. Every effect the tool already held was confirmed
+    unchanged, so these are additions rather than corrections. Two of them
+    settle a tier question that had been corrected by hand earlier: the
+    melee-crit threat proc sits on the TIER 6 greaves and the fortify proc
+    on the TIER 6 chestguard. */
  {pat:"t4 feet Foundation", trigger:"on ally hit", effect:"Shielding an ally boosts your shielding power", scope:"fortify", chance:100, id:"legendary_shield_power_buff_ability", name:"Obsidian Cargos"},
  {pat:"t5 chest Virelda", trigger:"on crit", effect:"Heavy hits and critical strikes boost your physical power for a short time", scope:"melee", chance:100, id:"legendary_heavy_hit_physical_power_buff_ability", name:"Virelda Warcrest Cuirass"},
  {pat:"t6 chest Foundation", trigger:"on cast", effect:"Fortifying grants physical power and draws enemy threat", scope:"fortify", chance:100, id:"legendary_fortify_physical_threat_buff_ability", name:"Foundation Bulwark Chestguard"},
