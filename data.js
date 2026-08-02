@@ -792,7 +792,7 @@ const HIDDEN_STATS={
   weapon_t4_sword_foundation_001:"+10% Trigger Ability Chance",
   weapon_t5_sword_virelda_001:   "+10% Trigger Ability Chance",
   /* Legendary-only, and read from live item data 2026-07-30. Every rare stat
-     in that capture appeared at rarity 4 and never below it, so a lower-rarity
+     in that reading appeared at rarity 4 and never below it, so a lower-rarity
      copy of the same item genuinely does not have these. The tooltip prints
      none of them: Obsidian Clogs carry 100% Burn Chance and say nothing. */
   armor_t3_chest_lunar_001:             "+10% Lightning Power",
@@ -810,7 +810,7 @@ const HIDDEN_STATS={
   weapon_t6_staff_lunar_001:            "+8 Link Count",
 };
 /* Legendary effects as the community wiki documents them, read from each
-   item's own page so the tier is implicit. For items we captured, this adds
+   item's own page so the tier is implicit. For items we have recorded, this adds
    only the effect's NAME. For the rest it is all we have - and it carries no
    proc chance, because the wiki does not publish one and inventing it would
    be worse than saying nothing. */
