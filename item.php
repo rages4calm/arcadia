@@ -62,22 +62,44 @@ const REPO = 'https://github.com/rages4calm/arcadia';
  * -- including the answer "the tooltip prints nothing", which is a real result
  * and the one people otherwise stay quiet about.
  */
-function gapIssueUrl(array $u): string {
+function gapIssueUrl(array $u, string $mode = 'effect'): string {
     $name = $u['name'] ?? $u['id'];
-    $body = "**Item:** {$name}\n"
-          . "**Internal id:** `{$u['id']}`\n"
+    $head = "**Item:** {$name}\n"
+          . (!empty($u['id']) ? "**Internal id:** `{$u['id']}`\n" : '')
           . (!empty($u['tier']) ? "**Tier:** {$u['tier']}\n" : '')
           . (!empty($u['slot']) ? "**Slot:** {$u['slot']}\n" : '')
           . (!empty($u['slug']) ? "**Page:** " . SITE . "/item/{$u['slug']}\n" : '')
-          . "\n---\n\n"
-          . "What does the **Legendary** version of this do?\n\n"
-          . "- [ ] The tooltip shows an effect — pasted below, or screenshot attached\n"
-          . "- [ ] The tooltip shows **nothing at all** — this is still a useful answer, "
-          . "some effects genuinely are not printed\n\n"
-          . "**Effect text (or screenshot):**\n\n\n"
-          . "**Item level** (confirms which tier this is):\n\n\n"
-          . "_Thanks — this closes one blank on the gaps list._\n";
-    return REPO . '/issues/new?title=' . rawurlencode("Legendary effect: {$name}")
+          . "\n---\n\n";
+
+    if ($mode === 'whole') {
+        // Nothing at all is known about this one, so asking only about its
+        // effect would collect the least useful part. A plain tooltip
+        // screenshot answers every field here at once.
+        $title = "Item data: {$name}";
+        $body = $head
+              . "Nothing is recorded for this item — not its stats, not its name.\n"
+              . "**A screenshot of the tooltip answers all of this at once.**\n\n"
+              . "- [ ] Screenshot attached\n\n"
+              . "Or typed out, if easier:\n\n"
+              . "**Exact name in game:**\n\n"
+              . "**Item level:**\n\n"
+              . "**Primary stats:**\n\n"
+              . "**Secondary stats:**\n\n"
+              . "**Rarity of the copy shown:**\n\n"
+              . "**Anything under the divider** (some effects are not printed at all):\n\n\n"
+              . "_Thanks — this would be the first entry this catalogue has for it._\n";
+    } else {
+        $title = "Legendary effect: {$name}";
+        $body = $head
+              . "What does the **Legendary** version of this do?\n\n"
+              . "- [ ] The tooltip shows an effect — pasted below, or screenshot attached\n"
+              . "- [ ] The tooltip shows **nothing at all** — this is still a useful answer, "
+              . "some effects genuinely are not printed\n\n"
+              . "**Effect text (or screenshot):**\n\n\n"
+              . "**Item level** (confirms which tier this is):\n\n\n"
+              . "_Thanks — this closes one blank on the gaps list._\n";
+    }
+    return REPO . '/issues/new?title=' . rawurlencode($title)
          . '&labels=' . rawurlencode('gear data')
          . '&body=' . rawurlencode($body);
 }
@@ -450,6 +472,39 @@ tooltip, and the developers have confirmed some are cut off entirely &mdash; so
   </div>
 <?php endforeach; ?>
 
+<?php if (!empty($GAPS['missingSlots'])): ?>
+<h2>Slots with nothing recorded at all</h2>
+<p class="meta">Different from the list above: for these there is no entry to be blank.
+The catalogue has no stats, no name and no effect for them, so they appear nowhere else
+on this site and the planner cannot weigh them.</p>
+<?php foreach ($GAPS['missingSlots'] as $slot => $list): ?>
+  <div class="grp">
+    <h3><?= e((string) $slot) ?> &middot; <?= count($list) ?></h3>
+    <div class="idx">
+    <?php foreach ($list as $m):
+      $u = ['id' => $m['id'] ?? '', 'name' => $m['name'], 'slot' => $slot,
+            'tier' => $m['tier'] ?? null, 'slug' => null]; ?>
+      <span class="gaprow">
+        <span style="flex:1 1 auto;min-width:0;color:var(--dim);font-size:14px">
+          <?= e($m['name']) ?><?php
+            if (!empty($m['set']) && strpos($m['name'], (string) $m['set']) === false)
+                echo ' <span class="b" style="color:var(--faint)">' . e($m['set']) . '</span>';
+            if (!empty($m['note']))
+                echo '<br><span style="color:var(--faint);font-size:12px">' . e($m['note']) . '</span>';
+          ?></span>
+        <a class="rec" href="<?= e(gapIssueUrl($u, 'whole')) ?>" rel="noopener"
+           title="Open a prefilled issue for this item">record</a>
+      </span>
+    <?php endforeach; ?>
+    </div>
+  </div>
+<?php endforeach; ?>
+<div class="warn"><b>The Back slot is the big one.</b> Cloaks are crafted rather than
+dropped, and they do carry stats &mdash; the item players rate highest in the slot is not
+even in the list above, because no id for it has been recorded. Any cloak tooltip at all
+would be the first entry this catalogue has ever had for the slot.</div>
+<?php endif; ?>
+
 <?php if (!empty($GAPS['unnamed'])): ?>
 <h2>Items with no name yet</h2>
 <p class="meta">These exist in the data with full stats, but no one has recorded what the
@@ -498,7 +553,7 @@ foreach ($ITEMS as $i) { $idCount += count($i['variants'] ?? []); }
   A green dot marks an item with a recorded legendary effect.
   A hollow dot means the community wiki names the effect but nobody has measured it.
   <a href="/gaps"><?= (int) ($GAPS['counts']['unknownEffect'] ?? 0) ?> effects are still
-  unrecorded</a> &mdash; if you own one at Legendary rarity you can close it, or use
+  unrecorded, and the Back slot has nothing at all</a> &mdash; if you own one at Legendary rarity you can close it, or use
   <b>Blank</b> below to see the items with nothing recorded at all.</p>
 <!-- Filtering runs in the browser over a list the server has already rendered in
      full. That way a crawler and a reader with no JavaScript still get all 153

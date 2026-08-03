@@ -243,6 +243,25 @@ const NO_PROC=[
  "t3 head Virelda","t4 chest Lunar","t5 chest Necro","t5 feet Lunar","t5 feet Necro",
  "t5 feet Neotilus","t5 head Necro","all rings","all belts",
 ];
+/* Items known to exist that this catalogue holds NOTHING for -- not even stats,
+   so they cannot live in ITEM_DB and would otherwise be invisible everywhere.
+
+   The whole Back slot is in this state. Cloaks are craft-only, they DO carry
+   stats, and not one has been recorded; the ids below are the ones seen in play,
+   and they are certainly not the whole list, since the item players rate highest
+   in the slot is not among them. Listing them lets the gaps page ask for a slot
+   by name instead of quietly pretending it does not exist. */
+const MISSING_ITEMS=[
+ {slot:"Back", id:"accessory_t2_cloak_foundation_001", tier:2, set:"Foundation Bulwark"},
+ {slot:"Back", id:"accessory_t3_cloak_foundation_001", tier:3, set:"Foundation Bulwark"},
+ {slot:"Back", id:"accessory_t4_cloak_foundation_001", tier:4, set:"Foundation Bulwark"},
+ {slot:"Back", id:"accessory_t5_cloak_foundation_001", tier:5, set:"Foundation Bulwark"},
+ {slot:"Back", id:"accessory_t2_cloak_neotilus_001", tier:2, set:"Neotilus Trailseeker"},
+ {slot:"Back", id:"accessory_t3_cloak_neotilus_001", tier:3, set:"Neotilus Trailseeker"},
+ {slot:"Back", id:"accessory_t4_cloak_neotilus_001", tier:4, set:"Neotilus Trailseeker"},
+ {slot:"Back", id:"accessory_t5_cloak_neotilus_001", tier:5, set:"Neotilus Trailseeker"},
+ {slot:"Back", name:"Gecko", note:"reported as the best Back item in the game; no id recorded"},
+];
 /* Observed item database — 102 base items recorded in play.
    p   = primary attributes. FIXED per base item: identical at every rarity, so the
          item level (their sum) is fixed too. This is what identifies an item.
