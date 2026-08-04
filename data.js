@@ -94,6 +94,10 @@ const GEAR_LIB = [
   {"slot":"Arms","name":"Celestial Yoku Staff","rarity":"legendary","lvl":45,"rolledSec":2,"rolls":[{"s":"precision","p":1,"v":12},{"s":"focus","p":1,"v":16},{"s":"will","p":1,"v":17},{"s":"link_count_pct","p":0,"v":-100.0},{"s":"link_count","p":0,"v":8.0}]},
   {"slot":"Arms","name":"Redeemed Celestial Katana","rarity":"legendary","lvl":49,"rolls":[{"s":"power","p":1,"v":17},{"s":"focus","p":1,"v":16},{"s":"ferocity","p":1,"v":16},{"s":"attack_speed","p":0,"v":8.8},{"s":"duration","p":0,"v":35.0}]},
   {"slot":"Back","name":"Wanderer's Encoded Cloak","rarity":"rare","lvl":4,"rolls":[{"s":"will","p":1,"v":2},{"s":"focus","p":1,"v":2}]},
+  {"slot":"Back","name":"Gecko Backpack","rarity":"epic","lvl":15,"rolledSec":1,"rolls":[{"s":"damage","p":0,"v":30},{"s":"health","p":0,"v":12},{"s":"dodge_chance","p":0,"v":2},{"s":"buff_power","p":0,"v":20}]},
+  {"slot":"Back","name":"Starweave Armour","rarity":"epic","lvl":17,"rolls":[{"s":"damage","p":0,"v":98},{"s":"health","p":0,"v":123},{"s":"dodge_chance","p":0,"v":8},{"s":"cooldown_reduction","p":0,"v":3.5}]},
+  {"slot":"Back","name":"Basalt Cloak","rarity":"rare","lvl":12,"rolls":[{"s":"damage","p":0,"v":5},{"s":"health","p":0,"v":15},{"s":"defense_rating","p":0,"v":7}]},
+  {"slot":"Back","name":"Obsidian Trimmed Cloak","rarity":"rare","lvl":0,"rolls":[{"s":"damage","p":0,"v":18},{"s":"health","p":0,"v":10},{"s":"critical_strike_chance","p":0,"v":1}]},
   {"slot":"Belt","name":"Nihil Cinch","rarity":"rare","lvl":0,"rolls":[{"s":"void_damage","p":0,"v":20.0},{"s":"aoe_radius","p":0,"v":3.5},{"s":"critical_strike_damage","p":0,"v":12.0}]},
   {"slot":"Belt","name":"Glacial Girdle","rarity":"legendary","lvl":0,"rolls":[{"s":"cold_damage","p":0,"v":15.0},{"s":"cooldown_reduction","p":0,"v":1.75},{"s":"aoe_radius","p":0,"v":4.05}]},
   {"slot":"Chest","name":"Ferrox Plate Chest","rarity":"epic","lvl":47,"rolls":[{"s":"vitality","p":1,"v":29},{"s":"precision","p":1,"v":9},{"s":"will","p":1,"v":9},{"s":"critical_strike_damage","p":0,"v":26.0},{"s":"attack_speed","p":0,"v":6.6},{"s":"physical_damage","p":0,"v":6.6}]},
@@ -246,11 +250,11 @@ const NO_PROC=[
 /* Items known to exist that this catalogue holds NOTHING for -- not even stats,
    so they cannot live in ITEM_DB and would otherwise be invisible everywhere.
 
-   The whole Back slot is in this state. Cloaks are craft-only, they DO carry
-   stats, and not one has been recorded; the ids below are the ones seen in play,
-   and they are certainly not the whole list, since the item players rate highest
-   in the slot is not among them. Listing them lets the gaps page ask for a slot
-   by name instead of quietly pretending it does not exist. */
+   These eight internal cloak ids are seen in play with nothing recorded for them --
+   no name, no stats. They are NOT the named back items the wiki documents (Gecko
+   Backpack and the rest, now in the library): those carry no internal id and these
+   carry no name, so the two lists have never been joined. Whether these are the
+   crafted variants of the named ones is unknown, and worth someone checking. */
 const MISSING_ITEMS=[
  {slot:"Back", id:"accessory_t2_cloak_foundation_001", tier:2, set:"Foundation Bulwark"},
  {slot:"Back", id:"accessory_t3_cloak_foundation_001", tier:3, set:"Foundation Bulwark"},
@@ -260,7 +264,6 @@ const MISSING_ITEMS=[
  {slot:"Back", id:"accessory_t3_cloak_neotilus_001", tier:3, set:"Neotilus Trailseeker"},
  {slot:"Back", id:"accessory_t4_cloak_neotilus_001", tier:4, set:"Neotilus Trailseeker"},
  {slot:"Back", id:"accessory_t5_cloak_neotilus_001", tier:5, set:"Neotilus Trailseeker"},
- {slot:"Back", name:"Gecko", note:"reported as the best Back item in the game; no id recorded"},
 ];
 /* Observed item database — 102 base items recorded in play.
    p   = primary attributes. FIXED per base item: identical at every rarity, so the
@@ -902,6 +905,7 @@ const SEC = {
   power_healing:"Healing Power %", power_shielding:"Shielding Power %",
   power_lightning:"Lightning Power %", power_ethereal:"Ethereal Power %",
   resistance_stun:"Stun Resistance %",
+  damage:"Damage", defense_rating:"Defense Rating %",
   resistance_physical:"Physical Resistance %", freeze_chance:"Freeze Chance %",
   trigger_ability_chance:"Trigger Ability Chance % (hidden in game)",
   attack_speed:"Attack Speed %", cooldown_reduction:"Cooldown Reduction %",
