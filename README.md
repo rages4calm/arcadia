@@ -10,6 +10,29 @@ already have.
 
 ![Arcadia with a build loaded](screenshots/planner-desktop.png)
 
+> ### This project is finished, and everything in it is yours to take
+>
+> Arcadia is no longer being updated. The data here was measured by hand from the game
+> during Early Access; the last snapshot is **2 August 2026**, and anything balance-related
+> will drift from that date onward. Treat it as a record of what the game looked like then,
+> not as a live source.
+>
+> **It is MIT licensed and meant to be reused.** If you are building something for this
+> game, take whatever helps — there is no need to ask, and attribution is welcome but not
+> demanded. Two things are worth knowing about specifically:
+>
+> - **[`items.json`](items.json) and [`relics.json`](relics.json)** are stable, plain JSON:
+>   171 items with stats, roll pools, drop tables and the legendary effects the in-game
+>   tooltip does not print, plus 165 relics across 17 abilities. Both are generated files —
+>   the source is [`data.js`](data.js).
+> - **[Share links that stay short](#share-links-that-stay-short)** — the encoding below
+>   turns a full build into a 473-character URL with no server involved, or 40 characters
+>   with one. If your own share links are unwieldy, that section is the useful part of this
+>   repo.
+>
+> Corrections to the data are still worth filing as issues even though the site is static;
+> anyone who forks this will see them.
+
 ## What it does
 
 - **Attribute totals** from your gear, live as you type.
@@ -83,10 +106,58 @@ Open `index.html` in a browser, or drop the folder on any static host — it wor
 machine. The optional item pages (`/item/<name>`) are rendered by `item.php` and need PHP; the
 planner itself does not.
 
-## Short links (optional)
+## Share links that stay short
 
-Optional. Arcadia works fine without this — the share button just produces the long
-self-contained link instead. Set this up if you want `arcadia.carl-prewitt.com/b/x7k2p`.
+A build encodes into the URL itself, so a shared link needs no server and never expires.
+The reason it fits is two steps, and the first one does most of the work. Measured on the
+example build that ships with the tool:
+
+| | chars |
+|---|---|
+| the build as plain JSON | 2,076 |
+| **rewritten with indices instead of names** | **680** (−67%) |
+| base64url of that | 907 |
+| **deflate-raw, then base64url** | **437** (−52% again) |
+| full URL, uncompressed | 943 |
+| **full URL, compressed** | **473** |
+| full URL, with the optional backend below | 40 |
+
+**Step 1 — stop shipping names.** Nothing in the payload spells anything out. An ability
+becomes its index in `ABILITIES`, a stat becomes its index in `ALLSTATS`, a slot is implied
+by its position in a fixed-length array, and a roll is a 4-element array rather than an
+object with keys. `{"s":"critical_strike_damage","p":0,"v":26}` becomes `[14,0,26,0]`.
+This is where two thirds of the size goes, and it needs no browser features at all.
+
+**Step 2 — compress what's left**, with `CompressionStream`, which is native in every
+current browser and needs no library:
+
+```js
+const bytes = new TextEncoder().encode(JSON.stringify(payload));
+const cs = new CompressionStream('deflate-raw');
+cs.writable.getWriter().write(bytes);            // then .close()
+const out = new Uint8Array(await new Response(cs.readable).arrayBuffer());
+const link = 'c.' + b64url(out);                 // b64url = base64, +/ → -_, no padding
+```
+
+Two details that matter more than they look:
+
+- **The `c.` marker.** Compressed links carry it, older ones don't, and the decoder
+  branches on it. That is what let compression be added without breaking a single link
+  that had already been shared. If you retrofit this, add the marker on day one.
+- **Positions are permanent.** Because the payload stores *indices*, reordering `ABILITIES`
+  or the slot list silently changes what every previously shared link means. Append only.
+  This has already cost this project one ability slot in older links.
+
+There is a real cost: encoding and decoding become `async`, so a link now resolves after
+first paint rather than during it. Worth it, and the uncompressed path stays as a fallback
+for anything without `CompressionStream`.
+
+### Even shorter, with a small backend (optional)
+
+Everything above works on a static host. This step is only for `/b/x7k2p`-style links —
+about 40 characters, which matters because some chat filters flag long URLs. Arcadia never
+depends on it: with no backend, the share button falls back to the long self-contained link
+in about 10ms and says so.
 
 Takes about five minutes in cPanel.
 
@@ -195,16 +266,11 @@ enough that ordinary visitors won't think about it.
 
 Without the backend the gallery page says so plainly and the planner is unaffected.
 
-## Contributing
+## If you fork this
 
-The most useful contribution is **gear data**. The game has far more items than are documented
-here, and the roll pools aren't published anywhere — so the library grows from real tooltips.
-
-- Found an item that isn't in the library? Open an issue with a screenshot of the tooltip.
-- Spotted a number that looks wrong? Open an issue — the in-game panel is always the authority.
-- Know what a missing legendary effect does? [The gaps list](https://arcadia.carl-prewitt.com/gaps)
-  has a **record** link on every blank that opens a prefilled issue. A tooltip that shows *nothing*
-  is a useful answer too — some effects genuinely aren't printed.
+Nobody is merging PRs here any more, so the useful move is to fork it or lift the parts you
+want. Issues are still worth opening — corrections stay visible to anyone who forks, and a
+wrong number recorded publicly is better than a wrong number nobody flagged.
 
 ### Where things live
 
@@ -213,18 +279,33 @@ here, and the roll pools aren't published anywhere — so the library grows from
 | `data.js` | **the source** for all game data — items, effects, relics, abilities |
 | `app.js` | all the logic |
 | `arcadia.css` | all the styles |
+| `index.html` | a 14 KB shell; the three files above do the work |
 | `items.json`, `relics.json`, `sitemap-*.xml` | **generated** from `data.js` |
+| `item.php`, `relic.php` | render the generated JSON into pages |
+| `b.php` | rewrites the `og:` tags so a shared build link previews as that build |
 
-**Edit `data.js`, never the JSON.** `items.json` and `relics.json` are build output that gets
-regenerated on deploy, so a change made directly to them is overwritten. Open a PR against
-`data.js` and the pages rebuild from it.
+**Edit `data.js`, never the JSON** — the JSON is build output. Regenerating it is a small
+script that reads the consts out of `data.js` by evaluating it (they carry comments and
+trailing commas, so no JSON parser will take them) and writes the two files plus their
+sitemaps. That script isn't in the repo, but it is about a hundred lines and the shape of
+the output is obvious from the files themselves.
 
-Each dataset is written one entry per line on purpose — two people adding different items produce
-a clean one-line diff each instead of a conflict in a 60 KB line. Please keep that shape.
+The datasets are written **one entry per line** on purpose: as single lines, git cannot
+merge two people adding different items. Worth keeping if you build on this.
 
-The scripts that do the regenerating aren't in this repo; they're part of the maintainer's local
-setup and aren't needed to contribute. If a PR changes `data.js`, the rebuild happens on the way
-out.
+The `?v=` on each asset is a **hash of that file's contents**, and they are served with a
+one-year cache. If you change `data.js` or `app.js` and don't change the hash, returning
+visitors get the old file for a year and it looks exactly like a deploy that didn't happen.
+
+### What is still missing, if you want to finish it
+
+- **55 items** are known to drop a Legendary version whose effect nobody recorded —
+  listed at [`/gaps`](https://arcadia.carl-prewitt.com/gaps).
+- **8 internal cloak ids** seen in play with no name and no stats. They are *not* the named
+  back items the wiki documents; nobody has joined the two lists.
+- The community wiki has **far more items** than are here (roughly 1,900 rows via its public
+  API). This project only ever held what was measured directly, which is why its item count
+  is small and its effect data is not.
 
 ## Disclaimer
 
