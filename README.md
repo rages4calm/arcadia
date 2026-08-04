@@ -13,9 +13,13 @@ It carries this project's data along with a far larger item list, and it is main
 
 > ### This project is finished, and everything in it is yours to take
 >
-> Arcadia is no longer being updated and its site is being retired, so links to
-> `arcadia.carl-prewitt.com` in older posts will stop resolving. **[Gearforge](https://gearforge.dannyseabra.design/)**
-> is the tool to use now.
+> The site at `arcadia.carl-prewitt.com` was retired in August 2026, so links to it in older
+> posts no longer resolve. **[Gearforge](https://gearforge.dannyseabra.design/)** is the tool
+> to use now.
+>
+> This repository stays public and clonable. It is archived, which only means nobody can push
+> to it or open issues — cloning, pulling, forking and diffing against it all work exactly as
+> before.
 >
 > The data here was measured by hand from the game during Early Access; the last snapshot is
 > **2 August 2026**, and anything balance-related will drift from that date onward. Treat it
