@@ -6,16 +6,20 @@ Enter your gear and abilities, and it tells you which of the six attributes actu
 *your* build, whether a piece of gear is an upgrade, and which abilities fit the stats you
 already have.
 
-**→ [Open Arcadia](https://arcadia.carl-prewitt.com/)**
+**→ If you are looking for a working tool, use [Gearforge](https://gearforge.dannyseabra.design/).**
+It carries this project's data along with a far larger item list, and it is maintained.
 
 ![Arcadia with a build loaded](screenshots/planner-desktop.png)
 
 > ### This project is finished, and everything in it is yours to take
 >
-> Arcadia is no longer being updated. The data here was measured by hand from the game
-> during Early Access; the last snapshot is **2 August 2026**, and anything balance-related
-> will drift from that date onward. Treat it as a record of what the game looked like then,
-> not as a live source.
+> Arcadia is no longer being updated and its site is being retired, so links to
+> `arcadia.carl-prewitt.com` in older posts will stop resolving. **[Gearforge](https://gearforge.dannyseabra.design/)**
+> is the tool to use now.
+>
+> The data here was measured by hand from the game during Early Access; the last snapshot is
+> **2 August 2026**, and anything balance-related will drift from that date onward. Treat it
+> as a record of what the game looked like then, not as a live source.
 >
 > **It is MIT licensed and meant to be reused.** If you are building something for this
 > game, take whatever helps — there is no need to ask, and attribution is welcome but not
@@ -56,12 +60,13 @@ already have.
 
 ## Item and relic pages
 
-Every item also has its own page — [`/item/<name>`](https://arcadia.carl-prewitt.com/items) — with
-its stats, what it can roll, where it drops, and the hidden legendary effect. These are plain pages
-a search engine can index and you can link in chat, and they say the one thing a tier-less wiki
-list cannot: when a Tier 5 and a Tier 6 item share a name, how their effects differ.
+Every item had its own page at `/item/<name>`, rendered by [`item.php`](item.php) from
+[`items.json`](items.json): its stats, what it can roll, where it drops, and the hidden legendary
+effect. They said the one thing a tier-less wiki list cannot — when a Tier 5 and a Tier 6 item
+share a name, how their effects differ. The pages go with the site; the data behind them is in
+this repo.
 
-[`/relics`](https://arcadia.carl-prewitt.com/relics) does the same for the 165 measured relics,
+[`relic.php`](relic.php) did the same for the 165 measured relics in [`relics.json`](relics.json),
 grouped by the ability that unlocks them, because that is how the game hands them out. Each pool
 page shows every upgrade step in order, keeps the one-off relics separate from the ones with an
 upgrade path, and flags the damage-conversion relics — converting your damage type is the quickest
@@ -213,11 +218,11 @@ preview for a shared build — upload it too, but the app works without it.
 ### 5. Check it
 
 ```bash
-curl -X POST https://arcadia.carl-prewitt.com/api/build.php \
+curl -X POST https://your-domain.example/api/build.php \
   -H "Content-Type: application/json" -d '{"p":"c.testtesttest"}'
 ```
 
-Expect `{"id":"abc12"}`. Then open `https://arcadia.carl-prewitt.com/b/abc12` — it should load
+Expect `{"id":"abc12"}`. Then open `https://your-domain.example/b/abc12` — it should load
 the app (it'll fail to decode that fake payload, which is fine; you're testing routing).
 
 Real test: open Arcadia, load a build, press **Copy share link**. You should get a short URL and
@@ -300,7 +305,7 @@ visitors get the old file for a year and it looks exactly like a deploy that did
 ### What is still missing, if you want to finish it
 
 - **55 items** are known to drop a Legendary version whose effect nobody recorded —
-  listed at [`/gaps`](https://arcadia.carl-prewitt.com/gaps).
+  listed under `gaps` in [`items.json`](items.json).
 - **8 internal cloak ids** seen in play with no name and no stats. They are *not* the named
   back items the wiki documents; nobody has joined the two lists.
 - The community wiki has **far more items** than are here (roughly 1,900 rows via its public
